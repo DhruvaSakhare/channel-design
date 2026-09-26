@@ -1,0 +1,16 @@
+channel-design
+Copyright 2026 DTU-Denmark iGEM Team (BioBuilders2026)
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product depends on third-party software that is NOT distributed with it and
+must be obtained separately. See docs/third-party.md for sources, licenses and
+citations, in particular:
+
+  * CAVER 3.0  - GNU General Public License v3, Masaryk University.
+                 Chovancova et al. (2012) PLoS Comput Biol 8:e1002708.
+                 https://www.caver.cz/
+  * fpocket    - MIT License, (c) Peter Schmidtke & Vincent Le Guilloux.
+  * Boltz-2    - https://github.com/jwohlwend/boltz
+  * LigandMPNN - https://github.com/dauparas/LigandMPNN
+  * AutoDock Vina, Meeko, RDKit, ColabFold/MMseqs2.
