@@ -37,9 +37,8 @@ broke, and why things are the way they are.
 ## Every run starts here
 
 ```bash
-cd /work3/s215098/BioBuilders2026/tools/enzmsa
-source /dtu/blackhole/00/c27666/miniforge3/etc/profile.d/conda.sh
-conda activate /dtu/blackhole/00/c27666/miniforge3/envs/protein-design
+cd <your clone>/enzyme_design
+conda activate protein-design        # see envs/design.md
 export PIPELINE_BASE_CONFIG=partial_diffusion.dhruva_configs.config_channel_02
 ```
 
@@ -91,7 +90,7 @@ One backbone, RFD3 only, minutes instead of hours. Pilots auto-name themselves
 silently re-measure the *old* backbone.
 
 ```bash
-NEW=$(ls -dt /work3/s215098/BioBuilders2026/dhruva/probe_* | head -1)
+NEW=$(ls -dt "$PIPELINE_WORK_ROOT"/*/probe_* | head -1)
 python partial_diffusion/scripts/08_probe_channel.py $NEW/diffusion_out/*.cif.gz \
     --baseline inputs/PabUPO-II_withHEMEFE_and_NNBT_baseline.json
 ```
@@ -113,7 +112,7 @@ small; scale up with `--n_batches 10` once a run looks healthy (same
 
 ```bash
 bstat                                     # monitor
-W=/work3/s215098/BioBuilders2026/dhruva/channel_02
+W="$PIPELINE_WORK_ROOT/example/channel_02"
 find $W/mpnn_out -name "*.fa" | wc -l     # sequences written
 find $W/rf3_out -name "*.cif.gz" | wc -l  # folded models
 ```

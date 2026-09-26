@@ -1,0 +1,33 @@
+# Environment for the docking and channel-discovery stages.
+#
+# Transcribed from channel_discovery/hpc/00_setup_env.sh, which remains the
+# authoritative installer: conda's solver will not honour "numpy first", and
+# the vina wheel needs BOOST_INCLUDE/BOOST_LIB exported before pip runs. If
+# this YAML fails, run that script instead -- it does the steps in order.
+#
+#   conda env create -f envs/docking.yml
+#   conda activate channel-design-docking
+#
+# openjdk=8 is here because CAVER 3.0 is a Java 8 application.
+# numpy<2.0 is a hard constraint: rdkit and the vina bindings are built
+# against the 1.x ABI and segfault against 2.x.
+name: channel-design-docking
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.12
+  - swig
+  - boost-cpp
+  - openjdk=8
+  - fpocket
+  - pip
+  - pip:
+      - "numpy<2.0"
+      - vina==1.2.7
+      - meeko==0.7.1
+      - rdkit==2025.9.5
+      - scipy==1.16.1
+      - matplotlib
+      - py3Dmol==2.5.4
+      - stmol==0.0.9

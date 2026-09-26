@@ -5,7 +5,7 @@ config_local.py — single-GPU / no-scheduler overrides for config.py.
 Everything scientific (FLEXIBLE_RESIDUES, catalytic pins, SMILES, cutoffs,
 batch sizes) is inherited from config.py, so there is ONE place to edit an
 experiment. This file only replaces the things that are specific to the DTU
-cluster: install paths, checkpoints, and the /work3 output root.
+cluster: install paths, checkpoints, and the scratch output root.
 
 Used by scripts/run_local.py, which imports this module in place of
 partial_diffusion.config before running the stage scripts.
@@ -54,7 +54,7 @@ RF3_CKPT     = _env("RF3_CKPT",     str(REPO_ROOT / "ckpt" / "rf3_latest.pt"))
 RF3_RELEASE  = _env("RF3_RELEASE",  str(REPO_ROOT / "rf3" / "release"))
 RF3_ACTIVATE = _env("RF3_ACTIVATE", str(Path(RF3_RELEASE) / "activate_env.sh"))
 
-# The MSA in config.py is an absolute /work3 path. Look for the local copy
+# The base config may carry an absolute MSA path. Look for the local copy
 # next to the input PDB instead, using the name 00_make_msa.py writes:
 # inputs/<pdb_stem>_A.a3m.gz. Empty = no msa_path = single-sequence folding.
 _msa_default = REPO_ROOT / "inputs" / f"{Path(INPUT_PDB).stem}_A.a3m.gz"
@@ -68,7 +68,7 @@ CONDA_SH    = ""
 PROTEIN_ENV = ""
 
 # ===========================================================================
-# ✗ DON'T EDIT — local output paths (mirror of the /work3 layout)
+# ✗ DON'T EDIT — local output paths (mirror of the cluster layout)
 # ===========================================================================
 SHARED_ROOT   = Path(_env("PIPELINE_WORK_ROOT", str(REPO_ROOT / "work")))
 WORK          = SHARED_ROOT / YOUR_NAME / EXPERIMENT
@@ -85,7 +85,7 @@ BEST_DIR      = WORK / "best_designs"
 
 def make_workdirs():
     """Local re-implementation — config.make_workdirs() would create the
-    /work3 paths, since it closes over config.py's globals, not these."""
+    cluster paths, since it closes over config.py's globals, not these."""
     if not SUBSTRATE_SMILES and not SUBSTRATE_CCD:
         raise RuntimeError("Set SUBSTRATE_SMILES or SUBSTRATE_CCD in config.py.")
     for d in (CONFIGS_DIR, SUBMIT_DIR, LOGS_DIR, CMDS_DIR,

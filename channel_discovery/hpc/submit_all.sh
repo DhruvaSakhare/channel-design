@@ -103,22 +103,13 @@ if [ ! -f "$LIGAND" ]; then
     exit 1
 fi
 
-# Every Stage A task needs fpocket. rsync faithfully copies the source's
-# permissions, so a fresh transfer can silently strip the execute bit from the
-# vendored binary and every task then dies with "fpocket failed (exit 1)".
-# Repair it here, and refuse to submit if fpocket still is not runnable.
-VENDORED_FPOCKET="$PROJECT/fpocket_pipeline/fpocket/bin/fpocket"
+# Every Stage A task needs fpocket. It is not vendored here -- it is MIT but
+# platform-specific, and a committed binary is neither reproducible nor allowed.
 if ! command -v fpocket >/dev/null 2>&1; then
-    if [ -f "$VENDORED_FPOCKET" ] && [ ! -x "$VENDORED_FPOCKET" ]; then
-        echo "Note: restoring execute bit on vendored fpocket binaries."
-        chmod +x "$PROJECT/fpocket_pipeline/fpocket/bin/"* 2>/dev/null || true
-    fi
-    if [ ! -x "$VENDORED_FPOCKET" ]; then
-        echo "ERROR: fpocket is not on PATH and the vendored binary is not usable:" >&2
-        echo "  $VENDORED_FPOCKET" >&2
-        echo "Install it into the env:  conda install -c bioconda fpocket -y" >&2
-        exit 1
-    fi
+    echo "ERROR: fpocket is not on PATH." >&2
+    echo "Install it into the env:  conda install -c bioconda fpocket -y" >&2
+    echo "or create the env:        conda env create -f envs/docking.yml" >&2
+    exit 1
 fi
 
 mkdir -p logs "$WORK" "$WORK/shards" "$WORK/docking_out" "$WORK/results"

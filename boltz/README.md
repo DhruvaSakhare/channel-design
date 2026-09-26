@@ -17,10 +17,12 @@ boltz_structures/
 ## 1. Environment
 
 ```bash
-conda create -n docking python=3.12 -y
-conda activate docking
-pip install boltz
+conda env create -f ../envs/boltz.yml
+conda activate channel-design-boltz
 ```
+
+Boltz needs its own environment: it pulls in torch, which conflicts with the
+`numpy<2.0` pin that the docking and channel stages require.
 
 For CUDA-13 / torch ≥ 2.12 envs the script passes `--no_kernels` to Boltz so it skips the `cuequivariance-torch` kernel path (which only ships CUDA-12 wheels). Functionally equivalent, just slightly slower.
 

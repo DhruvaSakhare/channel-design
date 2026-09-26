@@ -95,7 +95,7 @@ detection as `run_batch.py` expects.
 Run from the project root (`caver/`):
 
 ```bash
-java -Xmx1200m -cp caver/lib -jar caver/caver.jar \
+java -Xmx1200m -cp "$CAVER_HOME/lib" -jar "$CAVER_HOME/caver.jar" \
   -home caver/ \
   -pdb ./input_files/MyProtein.pdb \
   -conf ./config.txt \

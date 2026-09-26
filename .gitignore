@@ -55,3 +55,8 @@ __pycache__/
 
 # Your working config -- copy config_template.py to config.py and edit that.
 enzyme_design/partial_diffusion/config.py
+
+# Your sourced site overrides (copy envs/dtu-hpc.env.example)
+envs/site.env
+third_party/*
+!third_party/.gitkeep

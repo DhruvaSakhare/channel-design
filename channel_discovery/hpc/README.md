@@ -15,7 +15,7 @@ satisfy `from vina import Vina`.
 
 ```bash
 # $PROJECT is defined inside config.sh, not in your shell — use the literal path.
-cd /work3/s215098/BioBuilders2026/tools/channel_discovery/hpc
+cd <your clone>/channel_discovery/hpc
 
 # Copying/rsyncing the repo can strip the execute bit. Without this every
 # ./script below fails with "Permission denied".
@@ -59,7 +59,7 @@ identically. Get a session first — do not run it on a login node:
 
 ```bash
 bsub -Is -q hpc -W 1:00 -n 4 -R "rusage[mem=4GB]" -R "span[hosts=1]" bash
-cd /work3/s215098/BioBuilders2026/tools/channel_discovery/hpc && ./05_smoketest.sh
+cd <your clone>/channel_discovery/hpc && ./05_smoketest.sh
 ```
 
 It writes to `$WORK/smoketest/` and wipes that directory on each run, so it
@@ -194,8 +194,8 @@ N_CLUSTERS=5 EXHAUSTIVENESS=32 ./submit_all.sh -i /path/to/my_structures
 
 | Setting | Default | Notes |
 |---|---|---|
-| `TEAM` | `/work3/s215098/BioBuilders2026` | shared team tree — **not** `$USER`-derived |
-| `WORK` | `$TEAM/dhruva/channel_discovery_runs` | ~5–15 MB per structure. Files you create count against **your** `/work3` quota even inside the team dir |
+| `TEAM` | the checkout root | shared team tree if you have one — set it explicitly, **not** `$USER`-derived |
+| `WORK` | `$TEAM/work/channel_discovery_runs` | ~5–15 MB per structure. Files you create count against **your** quota even inside a shared dir |
 | `INPUTS` | a `best_designs` dir | your receptor structures |
 | `CONDA_ENV` | `bio_docking` | shared team env |
 | `MAXPAR` | 40 | concurrent array elements. Stage A takes 4 cores each, so 40 = 160 cores — check `busers` before raising |

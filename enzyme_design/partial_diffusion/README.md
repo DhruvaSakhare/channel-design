@@ -177,9 +177,8 @@ Run this before submitting any jobs — it verifies all CATRES are found, shows
 ligand positions, and identifies the proximal heme coordination residue:
 
 ```bash
-cd /work3/s215098/BioBuilders2026/tools/enzyme_design_hpc_msa   # or your own copy of this repo
-source /dtu/blackhole/00/c27666/miniforge3/etc/profile.d/conda.sh
-conda activate /dtu/blackhole/00/c27666/miniforge3/envs/protein-design
+cd <your clone>/enzyme_design
+conda activate protein-design        # see envs/design.md
 python partial_diffusion/scripts/00_prep_pdb.py --check
 ```
 
@@ -199,9 +198,8 @@ must be active *before* you run it. (Each LSF job it queues re-activates the
 environment itself — you don't need to do anything for the jobs.)
 
 ```bash
-cd /work3/s215098/BioBuilders2026/tools/enzyme_design_hpc_msa   # or your own copy of this repo
-source /dtu/blackhole/00/c27666/miniforge3/etc/profile.d/conda.sh
-conda activate /dtu/blackhole/00/c27666/miniforge3/envs/protein-design
+cd <your clone>/enzyme_design
+conda activate protein-design        # see envs/design.md
 ```
 
 **Step 2 — edit `partial_diffusion/config.py`** with your name, experiment
@@ -799,7 +797,8 @@ directly removes steric bulk from a specific region.
 
 ## Outputs
 
-All outputs go to `/work3/s215098/BioBuilders2026/<your_name>/<experiment>/`:
+All outputs go to `$PIPELINE_WORK_ROOT/<your_name>/<experiment>/`
+(default `enzyme_design/work/`, see `partial_diffusion/site.py`):
 
 ```
 <experiment>/

@@ -41,7 +41,7 @@ sys.path.insert(0, str(REPO_ROOT))
 # stage scripts pick it up when they import it.
 # BOTH bindings are needed: `import a.b as c` resolves through getattr(a, "b")
 # and only falls back to sys.modules, so patching sys.modules alone leaves the
-# stage scripts importing the real config — and creating /work3 paths.
+# stage scripts importing the real config — and creating cluster paths.
 import partial_diffusion                            # noqa: E402
 import partial_diffusion.config_local as C          # noqa: E402
 sys.modules["partial_diffusion.config"] = C

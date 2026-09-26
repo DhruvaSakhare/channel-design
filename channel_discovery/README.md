@@ -33,7 +33,7 @@ top-level map: what to run, in what order, and why.
 **The one command**, once setup is done — point it at your folder and confirm:
 
 ```bash
-cd /work3/s215098/BioBuilders2026/tools/channel_discovery/hpc && ./submit_all.sh -i /path/to/my_structures
+cd <your clone>/channel_discovery/hpc && ./submit_all.sh -i /path/to/my_structures
 ```
 
 That runs preflight, submits all four chained jobs, and leaves results in
@@ -46,7 +46,7 @@ automatically.
 ```bash
 # 0. Go to the code. $PROJECT is defined inside config.sh, not in your shell,
 #    so use the literal path here.
-cd /work3/s215098/BioBuilders2026/tools/channel_discovery/hpc
+cd <your clone>/channel_discovery/hpc
 
 # 1. Make the scripts executable. Copying/rsyncing the repo can strip the
 #    execute bit, and then every ./script below fails with "Permission denied".
@@ -58,7 +58,7 @@ vim config.sh
 
 # 3. Smoke-test on the 3 bundled structures first (interactive, ~minutes).
 bsub -Is -q hpc -W 1:00 -n 4 -R "rusage[mem=4GB]" -R "span[hosts=1]" bash
-cd /work3/s215098/BioBuilders2026/tools/channel_discovery/hpc   # the -Is shell may start elsewhere
+cd <your clone>/channel_discovery/hpc   # the -Is shell may start elsewhere
 ./05_smoketest.sh
 exit                     # back to the login node
 
@@ -128,11 +128,12 @@ python3 hpc/preflight_inputs.py /path/to/my_structures --report preflight.tsv
 |------|---------|-------|
 | Python ≥ 3.8 with `numpy`, `scipy`, `matplotlib` | both stages | pocket filtering, tunnel filtering, all plots |
 | `rdkit`, `vina`, `meeko` | Stage A docking only | the `vina` **Python bindings**, not the CLI |
-| `fpocket` | Stage A | `conda install -c bioconda fpocket` (Linux + macOS). A pre-built **Linux** binary is vendored at `fpocket_pipeline/fpocket/bin/fpocket` as a fallback |
-| Java ≥ 1.8 | Stage B | runs `caver_pipeline/caver/caver.jar`; CAVER 3.0 is happiest on Java 8 |
+| `fpocket` | Stage A | `conda install -c bioconda fpocket` (Linux + macOS) |
+| Java ≥ 1.8 | Stage B | runs CAVER; CAVER 3.0 is happiest on Java 8 |
+| CAVER 3.0 | Stage B | GPLv3, **not** redistributed here — `scripts/fetch_third_party.sh`, or set `$CAVER_HOME` |
 
-On DTU HPC all of this is already in the **`bio_docking`** env and the job
-scripts activate it for you — nothing to install.
+On a cluster where the `bio_docking` env already exists, the job scripts
+activate it for you — nothing to install.
 
 For a local run, create your own env:
 
@@ -152,11 +153,11 @@ before `pip install vina==1.2.7`, `meeko==0.7.1` pinned).
 > `pocket_selection.tsv` that Stage B needs, so the entire tunnel half of this
 > project runs without it.
 
-> **fpocket is platform-specific.** The vendored binary is a Linux (ELF)
-> executable — it will **not** run on macOS. The pipeline uses an `fpocket`
-> found on `PATH` and only falls back to the vendored binary if none is
-> installed, so Linux users can rely on the fallback while macOS users install
-> via conda (or rebuild with `cd fpocket_pipeline/fpocket && make`).
+> **fpocket and CAVER are not bundled.** Neither is redistributed with this
+> repository: fpocket is platform-specific and a committed binary would not be
+> reproducible, and CAVER 3.0 is GPLv3. Install fpocket from bioconda and run
+> `scripts/fetch_third_party.sh` for CAVER, or point `$CAVER_HOME` at a copy
+> you already have.
 
 ---
 
