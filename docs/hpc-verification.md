@@ -119,18 +119,33 @@ worse than none.
 
 ```bash
 conda activate bio_docking
-pip freeze > envs/requirements-docking.lock.txt
-conda list --explicit > envs/docking.conda-explicit.txt
+./scripts/make_lockfiles.sh docking
 
 conda activate channel-design-boltz
-pip freeze > envs/requirements-boltz.lock.txt
+./scripts/make_lockfiles.sh boltz
 ```
 
-Add a header line to each recording the platform and date, e.g.
-`# linux-64, CUDA 12.8, generated 2026-10-01`, then commit:
+The script records the platform, Python version and conda env name in the
+header, sanity-checks that the expected packages are importable before writing
+anything, and emits **two** files per environment:
+
+| file | why both are needed |
+|---|---|
+| `envs/requirements-<name>.lock.txt` | `pip freeze` — every pip package, pinned |
+| `envs/<name>.conda-explicit.txt` | `conda list --explicit` — pip cannot see conda-installed packages, and `fpocket` and `openjdk=8` are exactly that |
+
+Recreate an environment from them with:
 
 ```bash
-git add envs/*.lock.txt envs/docking.conda-explicit.txt
+conda create --name rebuilt --file envs/docking.conda-explicit.txt
+conda activate rebuilt
+pip install -r envs/requirements-docking.lock.txt
+```
+
+Then commit them:
+
+```bash
+git add envs/
 git commit -m "Add verified dependency locks generated on DTU HPC"
 git push
 ```
