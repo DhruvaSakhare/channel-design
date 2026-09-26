@@ -43,7 +43,7 @@ REPO_ROOT = _env_path("CHANNEL_DESIGN_ROOT",
 ENZYME_DESIGN_ROOT = REPO_ROOT / "enzyme_design"
 CHANNEL_ROOT       = REPO_ROOT / "channel_discovery" / "caver_pipeline"
 FPOCKET_ROOT       = REPO_ROOT / "channel_discovery" / "fpocket_pipeline"
-EXAMPLES_ROOT      = REPO_ROOT / "examples"
+INPUTS_ROOT        = ENZYME_DESIGN_ROOT / "inputs"
 
 # Used by 02b / 07 / 08 / 09 to turn RF3's mmCIF output into PDB for CAVER.
 CIF_TO_PDB = CHANNEL_ROOT / "python_scripts" / "cif_to_pdb.py"

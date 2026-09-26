@@ -34,6 +34,13 @@ That exercises the real join between components, every shipped configuration,
 and the cross-component path resolution, on fixture data. No GPU, no cluster,
 no model weights, no network.
 
+Or the fuller check, which adds the real channel pipeline if you have fpocket,
+Java and CAVER installed, and skips that tier cleanly if you do not:
+
+```bash
+./scripts/smoke_test.sh
+```
+
 To see what the GPU pipeline *would* do, without a GPU:
 
 ```bash
