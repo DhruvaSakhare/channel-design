@@ -3,7 +3,13 @@
 **Widening the substrate access channel of an unspecific peroxygenase, with the
 measurement inside the design loop.**
 
-DTU-Denmark, iGEM 2026.
+DTU-Denmark, iGEM 2026. Wiki: <https://2026.igem.wiki/dtu-denmark/>
+
+> Built with AI assistance. Every claim in this repository is traceable to a
+> file, a command, or a measurement — see [docs/validation.md](docs/validation.md)
+> for what is verified and what is not, and
+> [.claude/RESPONSIBLE_AI_USE.md](.claude/RESPONSIBLE_AI_USE.md) for the policy
+> we worked under.
 
 Unspecific peroxygenases (UPOs) are attractive industrial oxidation catalysts,
 but a substrate only reacts if it can reach the heme. That journey is a narrow
@@ -185,6 +191,19 @@ Swapping in a different affinity predictor for Boltz-2 means emitting those
 three columns. Nothing else changes.
 
 ---
+
+## Data and large files
+
+This repository holds source code and small example inputs only — 1.9 MB
+packed. The bundled structures (10 prepared PDBs, 4 ColabFold MSAs, 3 public
+reference crystals) are enough to run the channel pipeline end to end.
+
+Model weights are **not** here: they belong to their upstream projects and are
+fetched, see [`envs/design.md`](envs/design.md). Molecular dynamics
+trajectories and full design result sets are not in this repository either; if
+they are published they will go to
+[Zenodo](https://teams.igem.org/go/deliverables/software/zenodo) with a citable
+DOI and be linked from here.
 
 ## License and citation
 
