@@ -78,8 +78,27 @@ Full diagram and the two cross-component hand-offs:
 | 3 | [`channel_discovery/`](channel_discovery/) | Two-stage screen: fpocket finds the heme-proximal pocket, CAVER maps the tunnels and clusters them by shape | CPU |
 | 4 | [`enzyme_design/`](enzyme_design/) | Partial diffusion redesign: RFD3 → LigandMPNN → RF3, with CAVER measurement gating each stage | GPU |
 
-Components 2 and 3 run on a laptop. **The entire channel-measurement half of
-this project — where the validation work is — needs no GPU.**
+## What you actually need to run it
+
+**You do not need a cluster.** The pipeline has three entry points, and only
+the last one assumes a scheduler:
+
+| you have | you can run | how |
+|---|---|---|
+| **A laptop, no GPU** | `docking/`, all of `channel_discovery/`, every analysis script `07`–`12`, the full test suite | `pytest -q`, `./scripts/smoke_test.sh` |
+| **One GPU, no scheduler** | The *entire* design pipeline — RFD3 → LigandMPNN → RF3 — stage by stage on a single card | `python partial_diffusion/scripts/run_local.py` |
+| **A cluster with LSF** | The same thing, submitted as job arrays for scale | `python partial_diffusion/scripts/00_submit_all.py` |
+
+`run_local.py` is the same stages as the cluster path with `bsub` taken out, so
+nothing is cluster-specific except the batch scripts themselves. It has a
+preflight mode that tells you what is missing before anything runs:
+
+```bash
+python enzyme_design/partial_diffusion/scripts/run_local.py --check
+```
+
+**The entire channel-measurement half of this project — where the validation
+work is — needs no GPU at all.**
 
 ---
 
