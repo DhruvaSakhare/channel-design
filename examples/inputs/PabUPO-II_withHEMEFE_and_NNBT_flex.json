@@ -1,0 +1,18 @@
+{
+  "input_pdb": "PabUPO-II_withHEMEFE_and_NNBT.pdb",
+  "chain": "A",
+  "flexible_residues": [
+    207,
+    208,
+    257,
+    258,
+    259,
+    260,
+    261,
+    262,
+    292,
+    295,
+    335,
+    336
+  ]
+}

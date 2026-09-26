@@ -1,0 +1,2 @@
+Third-party tools are downloaded here by scripts/fetch_third_party.sh.
+Nothing in this directory is committed -- see docs/third-party.md.

@@ -1,0 +1,10 @@
+{
+  "structure": "PabUPO-II_withHEMEFE_and_NNBT.pdb",
+  "tunnel": 1,
+  "cluster": "1",
+  "bottleneck_radius": 0.982647493682864,
+  "length": 14.959050639189053,
+  "throughput": 0.7168873196650111,
+  "curvature": 1.297365358648736,
+  "measured": "apo"
+}

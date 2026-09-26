@@ -1,0 +1,10 @@
+HETATM    1 XE    XE D   1      42.118  -1.701  33.414  1.00  0.98          XE
+HETATM    2 XE    XE D   2      43.868  -1.053  33.339  1.00  1.52          XE
+HETATM    3 XE    XE D   3      45.698  -1.110  33.328  1.00  2.41          XE
+HETATM    4 XE    XE D   4      46.809  -1.856  31.940  1.00  2.51          XE
+HETATM    5 XE    XE D   5      47.828  -2.513  31.056  1.00  2.92          XE
+HETATM    6 XE    XE D   6      48.246  -3.164  29.468  1.00  3.36          XE
+HETATM    7 XE    XE D   7      48.749  -4.729  29.286  1.00  2.69          XE
+HETATM    8 XE    XE D   8      49.151  -6.071  28.750  1.00  2.24          XE
+HETATM    9 XE    XE D   9      50.058  -7.578  28.192  1.00  2.48          XE
+END

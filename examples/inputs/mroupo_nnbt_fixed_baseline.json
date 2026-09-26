@@ -1,0 +1,10 @@
+{
+  "structure": "mroupo_nnbt_fixed.pdb",
+  "tunnel": 1,
+  "cluster": "1",
+  "bottleneck_radius": 1.0581814170035315,
+  "length": 9.967629989722099,
+  "throughput": 0.7961392746599841,
+  "curvature": 1.1495217579732346,
+  "measured": "apo"
+}
