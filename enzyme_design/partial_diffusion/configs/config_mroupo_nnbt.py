@@ -26,35 +26,29 @@ from pathlib import Path
 # ===========================================================================
 # ★ EVERY RUN — who you are and a unique name for this run
 # ===========================================================================
-YOUR_NAME  = "dhruva"                       # ★ your first name, lowercase
-EXPERIMENT = "MSA_new_pab_upo_II_pymol_session_02_B_aggressive"  # ★ UNIQUE per run — bump the
+YOUR_NAME  = "example"                       # ★ your first name, lowercase
+EXPERIMENT = "mroupo_nnbt_channel_docked_conservative_01"  # ★ UNIQUE per run — bump the
                                               #    number or name each time, or a
                                               #    re-run will just resume the old one
 
 # ===========================================================================
 # ● PER ENZYME — input structure and ligands (only change for a new enzyme)
 # ===========================================================================
-# This config lives in a subfolder, so climb TWO parents — the pipeline assumes
-# PIPELINE_ROOT == partial_diffusion/ and PIPELINE_ROOT.parent == the repo root.
+# .parent.parent, NOT .parent — this file lives one level deeper than config.py
+# (in a *_configs/ subfolder), so it needs an extra hop to reach
+# partial_diffusion/. With only one .parent, INPUT_PDB resolves to
+# partial_diffusion/inputs/ instead of the repo's inputs/ and the config raises
+# FileNotFoundError on import.
 PIPELINE_ROOT = Path(__file__).resolve().parent.parent
 LIB_ROOT      = PIPELINE_ROOT.parent / "lib"
 
 # The FULL enzyme structure, already prepped: heme on chain B, substrate on
 # chain C, unique substrate atom names. (Use fix_pdb_chains.py if it isn't.)
-INPUT_PDB = str(PIPELINE_ROOT.parent / "inputs" / "PabUPO-II_withHEMEFE_and_NNBT.pdb")  # ●
+INPUT_PDB = str(PIPELINE_ROOT.parent / "inputs" / "mroupo_nnbt_docked_clean.pdb")  # ●
 
 HEME_NAME      = "HEM"    # ● heme residue name as it appears in the PDB
 SUBSTRATE_NAME = "UNL"    # ● substrate residue name in the PDB
 LIGAND_NAMES   = [HEME_NAME, SUBSTRATE_NAME]   # heme first — leave as is
-
-# The MSA RF3 folds designs against. Build it ONCE per enzyme with
-#     python partial_diffusion/scripts/00_make_msa.py
-# which writes inputs/<pdb_stem>_A.a3m.gz — found automatically by the line
-# below, so a new enzyme needs no edit here. Empty ("") means RF3 folds
-# single-sequence, which runs markedly lower pLDDT — drop PLDDT_CUT to ~0.70
-# if that happens, or the gate rejects nearly every design for the wrong reason.
-_msa_default    = PIPELINE_ROOT.parent / "inputs" / f"{Path(INPUT_PDB).stem}_A.a3m.gz"
-NATIVE_MSA_PATH = str(_msa_default) if _msa_default.exists() else ""   # ●
 
 # ===========================================================================
 # ◆ PER EXPERIMENT — THE MAIN KNOB: which residues are allowed to change
@@ -64,9 +58,9 @@ NATIVE_MSA_PATH = str(_msa_default) if _msa_default.exists() else ""   # ●
 # target a region (here: the substrate channel) without disturbing the fold.
 # Widen the entrance/middle → list the channel-lining residues that make it narrow.
 FLEXIBLE_RESIDUES = [                          # ◆ edit this to target a region
-   86, 87, 88, 89, 90, 91, 92, 93, 94, 95,
-   96, 97, 98, 99, 100, 101, 102, 103, 104,
-   105, 106, 107
+    55, 58, 59, 62,      # deep constriction, near Fe
+    83, 84,              # mid-channel wall
+    149, 152, 153, 156,  # channel entrance / mouth
 ]
 
 # ● PER ENZYME — catalytic / structural residues that are held rigid get EXTRA
@@ -76,12 +70,10 @@ FLEXIBLE_RESIDUES = [                          # ◆ edit this to target a regio
 # FLEXIBLE residue in here. If RFD3 errors on a big FIXED_ATOMS dict, simplify all
 # values to "CA" (lightest pin) or reduce this dict to just residue 52.
 _CATALYTIC_PINS = {                            # ●
-    52:  "N,CA,C,O,CB,SG",   # proximal catalytic Cys (heme thiolate) — essential
-    85:  "N,CA,C,O,CB",      # aromatic tripod, orients substrate toward heme
-    137: "N,CA,C,O,CB",      # aromatic tripod
-    215: "N,CA,C,O,CB",      # aromatic tripod
-    205: "N,CA,C,O,CB",      # acid-base pair (H2O2 cleavage)
-    212: "N,CA,C,O,CB",      # acid-base pair
+17:  "N,CA,C,O,CB,SG",   # proximal Cys — heme thiolate, 5th Fe ligand
+    86:  "N,CA,C,O,CB",      # distal His — acid-base catalysis
+    157: "N,CA,C,O,CB",      # distal Glu — H2O2 activation
+    160: "N,CA,C,O,CB",      # Phe — orients substrate toward heme
 }
 
 # ◆ PER EXPERIMENT — how aggressive the remodel is
@@ -90,7 +82,7 @@ _CATALYTIC_PINS = {                            # ●
 #   8–12 = more backbone freedom: bigger changes, lower pass yield
 # Bigger is NOT better — partial diffusion stays near the input by design, so
 # real widening also comes from MPNN shrinking the lining (sequence lever).
-PARTIAL_T = 15  # ◆ Å
+PARTIAL_T = 5  # ◆ Å
 
 # ◆ PER EXPERIMENT — how many backbones to generate (total = BATCH_SIZE × N_BATCHES)
 RFD3_BATCH_SIZE = 10   # backbones per GPU call
@@ -162,9 +154,9 @@ SUBSTRATE_CCD    = ""    # ● CCD code instead, if your substrate is in the CCD
 # ===========================================================================
 # ◆ PER EXPERIMENT — pass/fail thresholds used to pick best_designs
 # ===========================================================================
-PLDDT_CUT = 0.80   # ◆ enzyme fold confidence   > this (0-1, higher = better fold)
-PAE_CUT   = 8.0   # ◆ enzyme–substrate PAE     < this (Å,  lower = better placement)
-IPSAE_CUT = 0.50   # ◆ enzyme–substrate ipSAE   > this (0-1, higher = better interface)
+PLDDT_CUT = 0.85   # ◆ enzyme fold confidence   > this (0-1, higher = better fold)
+PAE_CUT   = 6.0   # ◆ enzyme–substrate PAE     < this (Å,  lower = better placement)
+IPSAE_CUT = 0.55   # ◆ enzyme–substrate ipSAE   > this (0-1, higher = better interface)
 
 # ✗ DON'T EDIT — RF3 chain order (A=enzyme, B=heme, C=substrate)
 RF3_ENZYME_CHAIN    = "A_1"
@@ -184,12 +176,13 @@ RF3_GROUP_SIZE         = 10   # folds per RF3 array task — leave as is
 # ===========================================================================
 QUEUE       = "gpua100"   # ● GPU queue for RFD3/MPNN/RF3 folding (gpua100 or gpuv100)
 CPU_QUEUE   = "hpc"       # ● CPU queue for prep/launcher/scoring — NO GPU. Check `bqueues`.
-CONDA_SH    = "/dtu/blackhole/00/c27666/miniforge3/etc/profile.d/conda.sh"      # ✗
-PROTEIN_ENV = "/dtu/blackhole/00/c27666/miniforge3/envs/protein-design"        # ✗
-RFD3_CKPT   = "/dtu/projects/dbl/foundry/ckpt/rfd3_latest.ckpt"                 # ✗
-MPNN_CKPT   = "/dtu/projects/dbl/foundry/ckpt/ligandmpnn_v_32_010_25.pt"        # ✗
-RF3_RELEASE = "/dtu/projects/dbl/rf3/release"                                   # ✗
-RF3_CKPT    = "/dtu/projects/dbl/rf3/release/ckpt/rf3_latest.pt"                # ✗
+# Install paths, checkpoints and queue names live in site.py, not here —
+# an experiment is portable, a filesystem is not. Override from the
+# environment (see envs/design.md), never by editing this block.  # ✗
+from partial_diffusion.site import (  # noqa: E402
+    CONDA_SH, MPNN_CKPT, PROTEIN_ENV, RF3_CKPT, RF3_RELEASE, RFD3_CKPT,
+    SHARED_ROOT,
+)
 
 # ---------------------------------------------------------------------------
 # ✗ DON'T EDIT — derived output paths
@@ -197,7 +190,6 @@ RF3_CKPT    = "/dtu/projects/dbl/rf3/release/ckpt/rf3_latest.pt"                
 if not YOUR_NAME or YOUR_NAME == "your_name":
     raise RuntimeError("Set YOUR_NAME in config.py before running.")
 
-SHARED_ROOT = Path("/work3/s215098/BioBuilders2026")
 if not (_SNAPSHOT_PATH and "WORK" in _overrides):
     WORK          = SHARED_ROOT / YOUR_NAME / EXPERIMENT
     CONFIGS_DIR   = WORK / "configs"

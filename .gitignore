@@ -52,3 +52,6 @@ __pycache__/
 *.swp
 .idea/
 .vscode/
+
+# Your working config -- copy config_template.py to config.py and edit that.
+enzyme_design/partial_diffusion/config.py

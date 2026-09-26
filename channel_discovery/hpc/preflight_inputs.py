@@ -11,8 +11,8 @@ This reproduces find_heme_fe()'s exact search order in pure Python — no fpocke
 no java, no conda env needed — so 1000 structures screen in seconds. It writes a
 manifest of usable structures that submit_all.sh can consume directly.
 
-    python3 preflight_inputs.py /work3/$USER/channel_discovery/inputs \\
-        -o /work3/$USER/channel_discovery/manifest.txt
+    python3 preflight_inputs.py /scratch/$USER/channel_discovery/inputs \\
+        -o /scratch/$USER/channel_discovery/manifest.txt
 """
 import argparse
 import sys

@@ -51,7 +51,7 @@ from pathlib import Path
 # ===========================================================================
 # ★ EVERY RUN — who you are and a unique name for this run
 # ===========================================================================
-YOUR_NAME = "dhruva"
+YOUR_NAME = "example"
 EXPERIMENT = "mroupo_channel_01"
                                               #    number or name each time, or a
                                               #    re-run will just resume the old one
@@ -279,12 +279,13 @@ RF3_GROUP_SIZE         = 10   # folds per RF3 array task — leave as is
 # ===========================================================================
 QUEUE       = "gpua100"   # ● GPU queue for RFD3/MPNN/RF3 folding (gpua100 or gpuv100)
 CPU_QUEUE   = "hpc"       # ● CPU queue for prep/launcher/scoring — NO GPU. Check `bqueues`.
-CONDA_SH    = "/dtu/blackhole/00/c27666/miniforge3/etc/profile.d/conda.sh"      # ✗
-PROTEIN_ENV = "/dtu/blackhole/00/c27666/miniforge3/envs/protein-design"        # ✗
-RFD3_CKPT   = "/dtu/projects/dbl/foundry/ckpt/rfd3_latest.ckpt"                 # ✗
-MPNN_CKPT   = "/dtu/projects/dbl/foundry/ckpt/ligandmpnn_v_32_010_25.pt"        # ✗
-RF3_RELEASE = "/dtu/projects/dbl/rf3/release"                                   # ✗
-RF3_CKPT    = "/dtu/projects/dbl/rf3/release/ckpt/rf3_latest.pt"                # ✗
+# Install paths, checkpoints and queue names live in site.py, not here —
+# an experiment is portable, a filesystem is not. Override from the
+# environment (see envs/design.md), never by editing this block.  # ✗
+from partial_diffusion.site import (  # noqa: E402
+    CONDA_SH, MPNN_CKPT, PROTEIN_ENV, RF3_CKPT, RF3_RELEASE, RFD3_CKPT,
+    SHARED_ROOT,
+)
 
 # ---------------------------------------------------------------------------
 # ✗ DON'T EDIT — derived output paths
@@ -292,7 +293,6 @@ RF3_CKPT    = "/dtu/projects/dbl/rf3/release/ckpt/rf3_latest.pt"                
 if not YOUR_NAME or YOUR_NAME == "your_name":
     raise RuntimeError("Set YOUR_NAME in config.py before running.")
 
-SHARED_ROOT = Path("/work3/s215098/BioBuilders2026")
 if not (_SNAPSHOT_PATH and "WORK" in _overrides):
     WORK          = SHARED_ROOT / YOUR_NAME / EXPERIMENT
     CONFIGS_DIR   = WORK / "configs"

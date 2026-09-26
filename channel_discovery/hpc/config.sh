@@ -1,25 +1,27 @@
-# Shared settings for the DTU HPC (LSF) job scripts. Sourced by every script.
+# Shared settings for the LSF job scripts. Sourced by every script.
 # Edit the paths below; nothing else should need changing.
 #
 # Every value uses ${VAR:-default}, so anything can be overridden from the
 # environment. bsub propagates the submitting environment to array tasks, which
 # is how submit_all.sh redirects a test run into its own WORK dir.
 
-# Shared BioBuilders2026 team tree. NOTE this lives under s215098, not your own
-# uid — do not use $USER in these paths, it resolves to s225191.
-TEAM="${TEAM:-/work3/s215098/BioBuilders2026}"
+# Root of a shared team tree, if you have one. On a cluster this is usually
+# scratch owned by one person, so do not build it out of $USER -- set it
+# explicitly. The default is the checkout itself, which works out of the box.
+TEAM="${TEAM:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
 # Where the code lives.
-PROJECT="${PROJECT:-$TEAM/tools/channel_discovery}"
+PROJECT="${PROJECT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # Where outputs go (~5-15 MB per structure, so ~10 GB for 1000).
-# Files you create are owned by you, so this counts against YOUR /work3 quota
-# even inside the team directory. Point it at your own space if that is tight:
-#   WORK=/work3/s225191/channel_discovery ./submit_all.sh
-WORK="${WORK:-$TEAM/dhruva/channel_discovery_runs_new}"
+# Inside a shared tree the files are still owned by you and count against your
+# own quota, so point this at your own space if that is tight:
+#   WORK=/scratch/$USER/channel_discovery ./submit_all.sh
+WORK="${WORK:-$TEAM/work/channel_discovery_runs}"
 
-# Your receptor structures (.pdb or .cif). Set this to wherever they actually are.
-INPUTS="${INPUTS:-$TEAM/dhruva/pabupoII_tunnel_aggressive_msa_01/best_designs}"
+# Your receptor structures (.pdb or .cif). Set this to wherever they actually
+# are; the bundled reference crystals are a working default for a first run.
+INPUTS="${INPUTS:-$PROJECT/fpocket_pipeline/inputs}"
 
 # CAVER stage input. run_batch.py globs *.pdb only, so CIF inputs are converted
 # here once by 20_collectA.sh (via caver_pipeline/python_scripts/cif_to_pdb.py).
@@ -86,7 +88,7 @@ find_conda_base() {
              "$TEAM/miniforge3" "$TEAM/miniconda3" \
              "$HOME/miniforge3" "$HOME/miniconda3" "$HOME/mambaforge" \
              "$HOME/anaconda3" "$HOME/conda" \
-             "/work3/$USER/miniforge3" "/work3/$USER/miniconda3"; do
+             "$TEAM/miniforge3" "$TEAM/miniconda3"; do
         if _is_conda_root "$d"; then
             printf '%s' "$d"; return 0
         fi

@@ -7,18 +7,16 @@ design, before committing GPU time to a full batch. Uses the real native MSA
 (auto-built by 00_submit_all.py --auto-msa if missing) so RF3 folds properly
 and pLDDT is meaningful, not just single-sequence noise.
 
-To use: back up the real config.py, copy this over it, submit, then restore.
-    cp partial_diffusion/config.py partial_diffusion/config.py.bak
-    cp partial_diffusion/kristine_configs/config_smoketest.py partial_diffusion/config.py
+To use — no config.py write access needed, every stage script now honors
+PIPELINE_BASE_CONFIG directly:
+    export PIPELINE_BASE_CONFIG=partial_diffusion.dhruva_configs.config_smoketest
     python partial_diffusion/scripts/00_submit_all.py --auto-msa
-    # ... after it finishes, restore the real config:
-    cp partial_diffusion/config.py.bak partial_diffusion/config.py
 """
 import os
 from pathlib import Path
 
-YOUR_NAME  = "kristine"
-EXPERIMENT = "smoketest_flow_check_01"   # bump the number to rerun clean
+YOUR_NAME  = "example"
+EXPERIMENT = "smoketest_flow_check_02"   # bump the number to rerun clean
 
 PIPELINE_ROOT = Path(__file__).resolve().parent.parent
 LIB_ROOT      = PIPELINE_ROOT.parent / "lib"
@@ -121,17 +119,17 @@ RF3_SUBSTRATE_CHAIN = "C_1"
 
 QUEUE       = "gpua100"
 CPU_QUEUE   = "hpc"
-CONDA_SH    = "/dtu/blackhole/00/c27666/miniforge3/etc/profile.d/conda.sh"
-PROTEIN_ENV = "/dtu/blackhole/00/c27666/miniforge3/envs/protein-design"
-RFD3_CKPT   = "/dtu/projects/dbl/foundry/ckpt/rfd3_latest.ckpt"
-MPNN_CKPT   = "/dtu/projects/dbl/foundry/ckpt/ligandmpnn_v_32_010_25.pt"
-RF3_RELEASE = "/dtu/projects/dbl/rf3/release"
-RF3_CKPT    = "/dtu/projects/dbl/rf3/release/ckpt/rf3_latest.pt"
+# Install paths, checkpoints and queue names live in site.py, not here —
+# an experiment is portable, a filesystem is not. Override from the
+# environment (see envs/design.md), never by editing this block.  # ✗
+from partial_diffusion.site import (  # noqa: E402
+    CONDA_SH, MPNN_CKPT, PROTEIN_ENV, RF3_CKPT, RF3_RELEASE, RFD3_CKPT,
+    SHARED_ROOT,
+)
 
 if not YOUR_NAME or YOUR_NAME == "your_name":
     raise RuntimeError("Set YOUR_NAME in config.py before running.")
 
-SHARED_ROOT = Path("/work3/s215098/BioBuilders2026")
 if not (_SNAPSHOT_PATH and "WORK" in _overrides):
     WORK          = SHARED_ROOT / YOUR_NAME / EXPERIMENT
     CONFIGS_DIR   = WORK / "configs"

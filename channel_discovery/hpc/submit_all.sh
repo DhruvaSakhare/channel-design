@@ -19,7 +19,7 @@
 # Examples:
 #   ./submit_all.sh
 #   ./submit_all.sh 10
-#   ./submit_all.sh -w /work3/me/run1 -i /work3/me/designs 10
+#   ./submit_all.sh -w /scratch/me/run1 -i /scratch/me/designs 10
 #
 # A limited run gets its own subdirectory (<work>/testN) so its outputs never
 # mix with, or get overwritten by, the full run.

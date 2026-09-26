@@ -1,9 +1,11 @@
 """
-Course helper: build an LSF job-array submit script for the c27666 queue.
+Build an LSF job-array submit script.
 
-Differs from the research version: GPU-aware (adds `#BSUB -gpu`), loads the
-CUDA module, and defaults to the course queue + a 12 h wall time (the queue
-default is only 15 min, so -W must always be set).
+GPU-aware (adds `#BSUB -gpu`), optionally loads a CUDA module, and always
+sets a wall time -- many queues default to 15 minutes, so -W is not optional.
+
+Queue names, the conda profile and the environment are all site-specific and
+are passed in by the caller from partial_diffusion.site.
 """
 import math
 import os
@@ -14,10 +16,11 @@ def make_sub_script(
     n_task,
     group_size=10,
     mem="10G",
-    queue="c27666",
+    queue="hpc",
     job_name="job",
     cores=4,
     time_limit="12:00",
+    conda_sh="",
     python_path=None,
     env=None,
     gpu=True,
@@ -57,11 +60,11 @@ def make_sub_script(
         lines += [f"module load {cuda_module}", ""]
 
     if env:
-        lines += [
-            "source /dtu/blackhole/00/c27666/miniforge3/etc/profile.d/conda.sh",
-            f'conda activate "{env}"',
-            "",
-        ]
+        # conda_sh is empty when the environment is already active, which is
+        # the normal case outside a batch scheduler.
+        if conda_sh:
+            lines += [f'source "{conda_sh}"']
+        lines += [f'conda activate "{env}"', ""]
 
     if python_path:
         lines += [f'export PYTHONPATH="{python_path}:${{PYTHONPATH:-}}"', ""]

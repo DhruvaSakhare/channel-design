@@ -25,9 +25,9 @@ try:
     from rdkit import Chem
 except ImportError:
     sys.exit(
-        "RDKit not found. Activate the conda environment first:\n"
-        "  source /dtu/blackhole/00/c27666/miniforge3/etc/profile.d/conda.sh\n"
-        "  conda activate /dtu/blackhole/00/c27666/miniforge3/envs/protein-design"
+        "RDKit not found. Activate the docking environment first:\n"
+        "  conda env create -f envs/docking.yml   # once\n"
+        "  conda activate channel-design-docking"
     )
 
 

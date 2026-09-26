@@ -29,7 +29,7 @@ mkdir -p "$WORK/outputs"
 # fpocket _out/ dirs are named per structure and never collide.
 # MOVE rather than copy: copying leaves a second full set under shards/, which
 # at ~1400 structures is tens of GB of pure duplication and will exhaust a
-# /work3 quota. Stage A is re-runnable if a shard is ever needed again.
+# scratch quota. Stage A is re-runnable if a shard is ever needed again.
 n=0
 for d in "$WORK"/shards/*/out; do
     [ -d "$d" ] || continue

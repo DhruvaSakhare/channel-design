@@ -183,6 +183,7 @@ sub_script = jupyter_utils.make_sub_script(
     cores=4,
     time_limit="2:00",
     env=C.PROTEIN_ENV,
+    conda_sh=C.CONDA_SH,
 )
 
 print(f"\n{n_tasks} MPNN command(s) -> {cmds_file}")

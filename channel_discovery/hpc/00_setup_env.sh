@@ -15,7 +15,7 @@ cd "$(dirname "$0")"
 CONDA_ROOT=$(find_conda_base) || {
     echo "ERROR: cannot find a conda installation." >&2
     echo "  Looked on PATH and in the usual roots. Find yours with:" >&2
-    echo "    ls -d \$HOME/mini* \$HOME/anaconda3 /work3/\$USER/mini* 2>/dev/null" >&2
+    echo "    ls -d \$HOME/mini* \$HOME/anaconda3 2>/dev/null" >&2
     echo "  then set CONDA_BASE in config.sh." >&2
     exit 1
 }
