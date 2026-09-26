@@ -1,0 +1,184 @@
+# channel-design
+
+**Widening the substrate access channel of an unspecific peroxygenase, with the
+measurement inside the design loop.**
+
+DTU-Denmark, iGEM 2026.
+
+Unspecific peroxygenases (UPOs) are attractive industrial oxidation catalysts,
+but a substrate only reacts if it can reach the heme. That journey is a narrow
+tunnel through the protein, and for a bulky substrate the tunnel is the
+bottleneck — quite literally, a constriction under 1 Å in radius.
+
+This repository is the pipeline we built to do something about it: measure that
+tunnel, free only the residues lining it, redesign them, refold, and measure
+again. On PabUPO-II it took the bottleneck from **0.983 Å to 1.094 Å (+11.3%)**
+at pLDDT 0.96 — wider than all three reference UPO crystal structures.
+
+The more transferable result is that **we found two bugs in how the channel was
+being measured, each larger than the effect we were trying to detect.** If you
+measure protein tunnels, [read that part](docs/validation.md) even if you never
+run this code.
+
+---
+
+## Quickstart — 30 seconds, no GPU
+
+```bash
+git clone <this repo> && cd channel-design
+pip install pytest pyyaml numpy matplotlib
+pytest -q
+```
+
+That exercises the real join between components, every shipped configuration,
+and the cross-component path resolution, on fixture data. No GPU, no cluster,
+no model weights, no network.
+
+To see what the GPU pipeline *would* do, without a GPU:
+
+```bash
+python enzyme_design/partial_diffusion/site.py          # what paths resolved
+PIPELINE_BASE_CONFIG=partial_diffusion.configs.config_pabupo2_channel_01 \
+  python enzyme_design/partial_diffusion/scripts/00_submit_all.py --dry-run
+```
+
+---
+
+## The workflow
+
+```
+FASTA ─► Boltz-2 ─► Vina docking ─► fpocket + CAVER ─► RFD3 ─► LigandMPNN ─► RF3
+         structure    poses          pockets, tunnels   remodel  sequences   fold
+         + affinity                        │                                  │
+                                           └──── which residues to free ──────┤
+                                                                              │
+                                     CAVER rescore ◄───── did it widen? ──────┘
+```
+
+Full diagram and the two cross-component hand-offs:
+[docs/architecture.md](docs/architecture.md).
+
+| | component | what it does | needs |
+|---|---|---|---|
+| 1 | [`boltz/`](boltz/) | Template-driven batch Boltz-2: one YAML per cofactor set, holo structures and binding affinity for a whole FASTA | GPU |
+| 2 | [`docking/`](docking/) | AutoDock Vina CLI — blind or targeted docking, box construction, PDBQT preparation | CPU |
+| 3 | [`channel_discovery/`](channel_discovery/) | Two-stage screen: fpocket finds the heme-proximal pocket, CAVER maps the tunnels and clusters them by shape | CPU |
+| 4 | [`enzyme_design/`](enzyme_design/) | Partial diffusion redesign: RFD3 → LigandMPNN → RF3, with CAVER measurement gating each stage | GPU |
+
+Components 2 and 3 run on a laptop. **The entire channel-measurement half of
+this project — where the validation work is — needs no GPU.**
+
+---
+
+## Install
+
+Three environments, because they genuinely conflict: the docking stack pins
+`numpy<2.0` for the RDKit and Vina ABI, while Boltz pulls in torch.
+
+```bash
+conda env create -f envs/docking.yml     # docking/ + channel_discovery/
+conda env create -f envs/boltz.yml       # boltz/
+./scripts/fetch_third_party.sh           # checks CAVER, fpocket, Java
+```
+
+The design environment needs model weights and is documented separately in
+[`envs/design.md`](envs/design.md) — all of RFdiffusion3, RF3 and LigandMPNN
+come from [RosettaCommons/foundry](https://github.com/RosettaCommons/foundry)
+in one install.
+
+Nothing needs editing to run. Every path defaults to somewhere inside the
+checkout and takes an environment override; see
+[`envs/dtu-hpc.env.example`](envs/dtu-hpc.env.example) for what a cluster setup
+looks like.
+
+---
+
+## Using it for your enzyme
+
+The method is not UPO-specific. To point it at your own enzyme:
+
+1. **Prepare your structure** — ligands on their own chains, substrate ~4–5 Å
+   above the iron. `enzyme_design/partial_diffusion/scripts/fix_pdb_chains.py`
+   does the chain surgery. *Ligands must be `HETATM`* — see
+   [KNOWN_ISSUES.md](KNOWN_ISSUES.md#2-a-substrate-written-as-atom-is-invisible).
+2. **Copy a config** from `enzyme_design/partial_diffusion/configs/` and edit
+   the tagged lines. The one list that matters is `FLEXIBLE_RESIDUES`;
+   everything not in it is held rigid and native.
+3. **Let CAVER choose that list** — `00_caver_channel.py` measures the parent
+   and writes the tunnel-lining residues for you.
+4. **Build the MSA** — `00_make_msa.py`, once per enzyme.
+
+For Boltz, a template is plain YAML with a `{seq}` placeholder and cofactors by
+PDB three-letter code. The bundled `4cu.yaml` (four copper ions, for
+multicopper oxidases) is there as evidence this already generalised past heme
+enzymes — `HEM`, `CU`, `ZN`, `NAD`, `FAD` all work the same way.
+
+---
+
+## Results and honesty
+
+| | |
+|---|---|
+| Best design | **1.094 Å** bottleneck, **+11.3%** over the parent, pLDDT 0.96 |
+| RFD3 backbones widened | 10/10, mean +0.057 Å |
+| Designs passing fold quality | 174/200 |
+| Folded designs measured | 16/20 widened, median +0.042 Å |
+
+**Caveats we would rather you read than discover.** Those 20 designs all come
+from one backbone and are therefore correlated; the full 174-design rescore is
+unfinished. Nothing here has been tested in a lab. The ceiling on widening this
+particular channel turns out to be catalytic — the constriction is formed by
+two catalytic residues, so going much further means touching the active site.
+
+Details, and the two measurement bugs: [docs/validation.md](docs/validation.md).
+
+---
+
+## Documentation
+
+| | |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | how the four components chain; the two hand-offs; configuration layers |
+| [docs/validation.md](docs/validation.md) | the two measurement bugs, the crystal benchmark, the design result, what is *not* validated |
+| [docs/data-formats.md](docs/data-formats.md) | every format at every boundary; the CSV contract; why there is no SBOL here |
+| [docs/ai-models.md](docs/ai-models.md) | which models, whose training data, how we evaluated, what the limitations are |
+| [KNOWN_ISSUES.md](KNOWN_ISSUES.md) | seven traps that each cost somebody a run, with the commands to verify them |
+| [CHANGELOG.md](CHANGELOG.md) | what was built and why |
+| [tests/README.md](tests/README.md) | what each test protects |
+| [`CHANNEL_README.md`](enzyme_design/partial_diffusion/CHANNEL_README.md) | the channel-widening workflow in detail |
+| [`CHANNEL_WIDENING_LOG.md`](enzyme_design/partial_diffusion/CHANNEL_WIDENING_LOG.md) | the lab notebook: what was tried, what failed, why it is built this way |
+
+---
+
+## Extending it
+
+Stage scripts are numbered in execution order and independently runnable.
+Configuration is layered so an experiment never carries a filesystem:
+experiment settings in `configs/`, machine settings in `site.py`, your
+overrides in a gitignored env file.
+
+The one thing to know before changing anything: the components meet at a CSV
+(`accession`, `ligand_iptm`, `affinity_pred_value`) and at
+`enzyme_design/lib/paths.py`. Both are covered by tests, because both break
+silently. Run `pytest -q` before and after.
+
+Swapping in a different affinity predictor for Boltz-2 means emitting those
+three columns. Nothing else changes.
+
+---
+
+## License and citation
+
+This project's own code is **Apache 2.0** — see [LICENSE](LICENSE).
+
+Third-party tools are **not** redistributed here; [NOTICE](NOTICE) lists them
+with their licenses. Two in particular:
+
+- **CAVER 3.0** — GPLv3, Masaryk University. Fetched by
+  `scripts/fetch_third_party.sh`. If you publish results made with it, cite
+  Chovancova E. *et al.* (2012) *CAVER 3.0: A Tool for the Analysis of
+  Transport Pathways in Dynamic Protein Structures.* PLoS Comput Biol
+  8(10):e1002708.
+- **fpocket** — MIT, © Peter Schmidtke & Vincent Le Guilloux.
+
+To cite this software, see [CITATION.cff](CITATION.cff).

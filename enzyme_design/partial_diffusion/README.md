@@ -584,7 +584,7 @@ de-novo via `CONTIG` (next section) rather than relying on more noise.
 
 The caveat above is now implemented rather than left to you. Two scripts close
 the loop around the channel, using the CAVER install in
-[`../channel_discovery/`](../channel_discovery/):
+[`../channel_discovery/`](../../channel_discovery/):
 
 ```
                     ┌── 00_caver_channel.py ──┐

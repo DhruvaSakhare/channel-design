@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "channel-design: substrate-channel measurement inside an enzyme redesign loop"
+abstract: >-
+  A pipeline for widening the substrate access channel of unspecific
+  peroxygenases. Boltz-2 structure and affinity prediction, AutoDock Vina
+  docking, fpocket/CAVER pocket and tunnel analysis, and RFdiffusion3 partial
+  diffusion with LigandMPNN and RF3, with CAVER tunnel measurement wired into
+  the design loop so that channel geometry selects the residues to redesign,
+  gates backbones before GPU work, and scores the folded designs.
+type: software
+license: Apache-2.0
+repository-code: "https://gitlab.igem.org/2026/software/dtu-denmark/channel-design"
+date-released: 2026-09-26
+version: "1.0.0"
+keywords:
+  - unspecific peroxygenase
+  - protein design
+  - substrate channel
+  - CAVER
+  - RFdiffusion
+  - iGEM
+authors:
+  - name: "DTU-Denmark iGEM 2026 Team"
+    website: "https://2026.igem.wiki/dtu-denmark/"
