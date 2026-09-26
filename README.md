@@ -26,7 +26,7 @@ run this code.
 
 ```bash
 git clone <this repo> && cd channel-design
-pip install pytest pyyaml numpy matplotlib
+pip install -r envs/requirements-tests.txt
 pytest -q
 ```
 
@@ -87,6 +87,17 @@ conda env create -f envs/docking.yml     # docking/ + channel_discovery/
 conda env create -f envs/boltz.yml       # boltz/
 ./scripts/fetch_third_party.sh           # checks CAVER, fpocket, Java
 ```
+
+| file | what it pins |
+|---|---|
+| [`envs/requirements-tests.txt`](envs/requirements-tests.txt) | the test environment — a **full** pin, transitive dependencies included, verified against a run of the suite |
+| [`envs/docking.yml`](envs/docking.yml) + [`requirements-docking.txt`](envs/requirements-docking.txt) | direct pins for the docking and channel stages. conda is the supported path: `fpocket` and `openjdk=8` are not on PyPI, and `numpy<2.0` must be installed *before* rdkit and vina or their C extensions break |
+| [`envs/boltz.yml`](envs/boltz.yml) + [`requirements-boltz.txt`](envs/requirements-boltz.txt) | direct pins for Boltz-2. `torch` is deliberately unpinned — the right wheel depends on your driver's CUDA |
+
+The two GPU environments are pinned at the direct level rather than fully
+locked, because a complete lock has to be generated on a machine where the
+environment actually works. [docs/hpc-verification.md](docs/hpc-verification.md)
+has the commands for producing one.
 
 The design environment needs model weights and is documented separately in
 [`envs/design.md`](envs/design.md) — all of RFdiffusion3, RF3 and LigandMPNN
@@ -152,6 +163,7 @@ Details, and the two measurement bugs: [docs/validation.md](docs/validation.md).
 | [KNOWN_ISSUES.md](KNOWN_ISSUES.md) | seven traps that each cost somebody a run, with the commands to verify them |
 | [CHANGELOG.md](CHANGELOG.md) | what was built and why |
 | [tests/README.md](tests/README.md) | what each test protects |
+| [docs/hpc-verification.md](docs/hpc-verification.md) | step-by-step check that this runs on a cluster, and how to generate the full dependency locks |
 | [`CHANNEL_README.md`](enzyme_design/partial_diffusion/CHANNEL_README.md) | the channel-widening workflow in detail |
 | [`CHANNEL_WIDENING_LOG.md`](enzyme_design/partial_diffusion/CHANNEL_WIDENING_LOG.md) | the lab notebook: what was tried, what failed, why it is built this way |
 

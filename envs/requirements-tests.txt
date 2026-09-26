@@ -1,0 +1,31 @@
+# Test environment -- a full, verified pin.
+#
+# This is the one lockfile in this repository that was generated from an
+# environment the test suite actually passed in, so it is pinned all the way
+# down including transitive dependencies.
+#
+#   Verified on: macOS 27 arm64, CPython 3.13.5, 2026-09-26
+#   Result:      119 passed, 1 skipped
+#
+#   pip install -r envs/requirements-tests.txt && pytest -q
+#
+# Nothing here needs a GPU, a cluster, CAVER, fpocket or any model weights.
+
+# direct
+matplotlib==3.10.6
+numpy==2.3.2
+pytest==9.1.1
+PyYAML==6.0.3
+
+# transitive
+contourpy==1.3.3
+cycler==0.12.1
+fonttools==4.59.2
+iniconfig==2.3.0
+kiwisolver==1.4.9
+packaging==25.0
+pillow==11.3.0
+pluggy==1.6.0
+pyparsing==3.2.3
+python-dateutil==2.9.0.post0
+six==1.17.0

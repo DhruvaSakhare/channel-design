@@ -1,0 +1,22 @@
+# Boltz-2 structure and affinity prediction -- DIRECT dependency pins.
+#
+# ⚠ Not a full lockfile; see envs/requirements-docking.txt for why.
+#
+#   conda env create -f envs/boltz.yml
+#   pip install -r envs/requirements-boltz.txt
+#
+# ⚠ torch is deliberately ABSENT from this file. The correct wheel depends on
+# the driver CUDA version of the machine you are on, so a pin here would be
+# wrong for most readers. Install it yourself first:
+#
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128
+#
+# On CUDA 13 / torch >= 2.12 the batch driver passes --no_kernels, skipping
+# the cuequivariance-torch path, which ships CUDA-12 wheels only.
+#
+# This environment is separate from the docking one on purpose: torch and the
+# numpy<2.0 pin above cannot coexist.
+
+boltz==2.2.1
+gemmi==0.7.4
+numpy

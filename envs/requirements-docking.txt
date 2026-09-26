@@ -1,0 +1,41 @@
+# Docking and channel-discovery stages -- DIRECT dependency pins.
+#
+# ⚠ This is not a full lockfile. Every direct dependency is pinned to the
+# version this project was developed and tested against, but transitive
+# dependencies are left to the resolver. See "Generating the real lockfile"
+# below -- we would rather ship an honest partial pin than a complete-looking
+# file whose versions nobody verified.
+#
+# conda is the supported install path, because three of the things this stage
+# needs are not on PyPI at all (fpocket, openjdk=8) or need conda-provided
+# build headers (boost-cpp, swig for the vina extension):
+#
+#   conda env create -f envs/docking.yml
+#
+# If you install with pip instead, ORDER MATTERS. numpy<2.0 must be installed
+# first: rdkit and the vina bindings are built against the 1.x ABI and will
+# segfault against 2.x. And vina needs the boost headers on the include path:
+#
+#   pip install "numpy<2.0"
+#   export BOOST_INCLUDE=$CONDA_PREFIX/include
+#   export BOOST_LIB=$CONDA_PREFIX/lib
+#   pip install -r envs/requirements-docking.txt
+#
+# Generating the real lockfile: on a machine where this environment works,
+#   pip freeze > envs/requirements-docking.lock.txt
+#   conda list --explicit > envs/docking.conda-explicit.txt
+# and commit both, noting the platform they were produced on.
+
+numpy<2.0
+vina==1.2.7
+meeko==0.7.1
+rdkit==2025.9.5
+scipy==1.16.1
+matplotlib
+py3Dmol==2.5.4
+stmol==0.0.9
+
+# Not installable from PyPI -- see envs/docking.yml:
+#   fpocket      conda install -c bioconda fpocket
+#   openjdk=8    required by CAVER 3.0
+#   swig, boost-cpp   build dependencies for the vina extension
