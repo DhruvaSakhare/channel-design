@@ -1,0 +1,29 @@
+# Two jobs, split by what they need installed.
+#
+# `parse` runs on a bare Python image with no third-party packages at all:
+# it is the guard that the repository carries no machine paths, no binaries,
+# and no unparseable source. If iGEM's GitLab has no runners available, this
+# is also exactly what `pytest -q` does on a laptop.
+#
+# `test` adds the few pure-Python dependencies the real tests need. Nothing
+# here needs a GPU, a cluster, CAVER, fpocket, or any model weights.
+stages: [parse, test]
+
+variables:
+  MPLBACKEND: "Agg"
+
+parse:
+  stage: parse
+  image: python:3.12-slim
+  before_script:
+    - pip install --quiet pytest
+  script:
+    - pytest tests/test_no_machine_paths.py tests/test_sources_compile.py -q
+
+test:
+  stage: test
+  image: python:3.12-slim
+  before_script:
+    - pip install --quiet pytest pyyaml numpy matplotlib
+  script:
+    - pytest tests/ -q

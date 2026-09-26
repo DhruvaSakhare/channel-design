@@ -215,12 +215,27 @@ def main():
     log(f"Template: {args.template}", tag)
     log(f"Output:   {args.out_dir}", tag)
 
-    fresh = not (args.resume and os.path.exists(csv_path))
-    csv_f = open(csv_path, "a", newline="")
+    # Rewrite the summary rather than appending to it. Resume re-collects
+    # metrics for every accession that is already done, so appending added a
+    # second row for each one on every resume -- and anything that aggregates
+    # this CSV (cluster_affinity_violin.py, for one) counted them twice.
+    # Rows for accessions that are not in this FASTA are still valid, so they
+    # are carried across instead of being dropped.
+    carried = {}
+    if args.resume and os.path.exists(csv_path):
+        with open(csv_path, newline="") as f:
+            for row in csv.DictReader(f):
+                if row.get("accession"):
+                    carried[row["accession"]] = row
+    in_this_run = {acc for acc, _ in records}
+
+    csv_f = open(csv_path, "w", newline="")
     writer = csv.DictWriter(csv_f, fieldnames=FIELDS, extrasaction="ignore")
-    if fresh:
-        writer.writeheader()
-        csv_f.flush()
+    writer.writeheader()
+    for acc, row in carried.items():
+        if acc not in in_this_run:
+            writer.writerow(row)
+    csv_f.flush()
 
     for i, (acc, seq) in enumerate(records, 1):
         target_dir = os.path.join(args.out_dir, acc)

@@ -1,0 +1,7 @@
+accession,status,seq_len,confidence_score,ptm,iptm,ligand_iptm,protein_iptm,complex_plddt,complex_iplddt,affinity_pred_value,affinity_probability_binary,pdb_path,structure_path
+UPO_001,ok,328,0.91,0.88,0.90,0.92,0.89,0.93,0.90,-1.85,0.81,,
+UPO_002,ok,331,0.88,0.85,0.86,0.87,0.86,0.90,0.88,-1.42,0.74,,
+UPO_003,ok,325,0.72,0.70,0.69,0.61,0.70,0.75,0.71,-0.90,0.55,,
+UPO_004,ok,330,0.93,0.91,0.92,0.95,0.91,0.94,0.92,-2.31,0.88,,
+UPO_005,error: boltz failed,327,,,,,,,,,,,
+UPO_006,ok,329,0.89,0.87,0.88,0.90,0.87,0.91,0.89,-1.60,0.78,,
