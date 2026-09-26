@@ -1,0 +1,3 @@
+# inputs/ is the user's working directory -- keep its guide, ignore its contents.
+inputs/*
+!inputs/README.md

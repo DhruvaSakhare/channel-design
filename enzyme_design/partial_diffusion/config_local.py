@@ -56,8 +56,11 @@ RF3_ACTIVATE = _env("RF3_ACTIVATE", str(Path(RF3_RELEASE) / "activate_env.sh"))
 
 # The base config may carry an absolute MSA path. Look for the local copy
 # next to the input PDB instead, using the name 00_make_msa.py writes:
-# inputs/<pdb_stem>_A.a3m.gz. Empty = no msa_path = single-sequence folding.
-_msa_default = REPO_ROOT / "inputs" / f"{Path(INPUT_PDB).stem}_A.a3m.gz"
+# <pdb_stem>_A.a3m.gz beside it, then inputs/. Empty = single-sequence folding.
+_msa_name = f"{Path(INPUT_PDB).stem}_A.a3m.gz"
+_msa_default = next((p for p in (Path(INPUT_PDB).parent / _msa_name,
+                                 REPO_ROOT / "inputs" / _msa_name)
+                     if p.exists()), REPO_ROOT / "inputs" / _msa_name)
 NATIVE_MSA_PATH = _env("NATIVE_MSA_PATH",
                        str(_msa_default) if _msa_default.exists() else "")
 

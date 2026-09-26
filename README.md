@@ -196,7 +196,9 @@ three columns. Nothing else changes.
 
 This repository holds source code and small example inputs only — 1.9 MB
 packed. The bundled structures (10 prepared PDBs, 4 ColabFold MSAs, 3 public
-reference crystals) are enough to run the channel pipeline end to end.
+reference crystals) live in `enzyme_design/examples/` and are enough to run
+the channel pipeline end to end. `enzyme_design/inputs/` ships empty — that
+directory is for **your** structures, so ours never get mixed in with them.
 
 Model weights are **not** here: they belong to their upstream projects and are
 fetched, see [`envs/design.md`](envs/design.md). Molecular dynamics

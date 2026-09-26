@@ -3,7 +3,8 @@
 00_make_msa.py — build the native MSA that RF3 folds against.
 
 Extracts chain A from INPUT_PDB and runs a ColabFold/MMseqs2 search, writing
-inputs/<pdb_stem>_A.a3m.gz — the file NATIVE_MSA_PATH points at. This is the
+<pdb_stem>_A.a3m.gz beside your structure — the file NATIVE_MSA_PATH points
+at. This is the
 same thing that produced the existing grogu_fixed_A.a3m.gz (verified: its query
 line is byte-identical to chain A of grogu_fixed.pdb).
 
@@ -87,7 +88,8 @@ def parse_args():
     p.add_argument("--api-mode", default="env",
                    help="ColabFold search mode for --backend api (default env)")
     p.add_argument("--db", default=None, help="ColabFold database dir (local backend)")
-    p.add_argument("--out", default=None, help="output .a3m.gz (default inputs/<stem>_<chain>.a3m.gz)")
+    p.add_argument("--out", default=None,
+                   help="output .a3m.gz (default: <stem>_<chain>.a3m.gz beside the input PDB)")
     p.add_argument("--force", action="store_true", help="overwrite an existing MSA")
     return p.parse_args()
 
@@ -349,8 +351,11 @@ def main():
     if not pdb.exists():
         sys.exit(f"Not found: {pdb}")
 
+    # Written next to the structure, which is where the configs look first.
+    # That keeps your enzyme and its alignment together in inputs/, and the
+    # bundled examples self-contained in examples/.
     out = Path(args.out) if args.out else (
-        Path(C.PIPELINE_ROOT).parent / "inputs" / f"{pdb.stem}_{args.chain}.a3m.gz")
+        pdb.parent / f"{pdb.stem}_{args.chain}.a3m.gz")
     if out.exists() and not args.force:
         sys.exit(f"{out} already exists — pass --force to regenerate.")
 
@@ -395,7 +400,7 @@ def main():
               "evolutionary signal. Consider folding single-sequence instead.")
     print(f"\n  Set in config.py:")
     print(f'    NATIVE_MSA_PATH = "{out.resolve()}"')
-    print("  (config_local.py finds inputs/<pdb_stem>_A.a3m.gz automatically.)")
+    print("  (configs find <pdb_stem>_A.a3m.gz beside the structure automatically.)")
     print("\n  Next:  python partial_diffusion/scripts/04_rf3_submit.py")
 
 

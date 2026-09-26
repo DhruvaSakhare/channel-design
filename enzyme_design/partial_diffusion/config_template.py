@@ -39,7 +39,7 @@ LIB_ROOT      = PIPELINE_ROOT.parent / "lib"
 
 # The FULL enzyme structure, already prepped: heme on chain B, substrate on
 # chain C, unique substrate atom names. (Use fix_pdb_chains.py if it isn't.)
-INPUT_PDB = str(PIPELINE_ROOT.parent / "inputs" / "PabUPO-II_withHEMEFE_and_NNBT.pdb")  # ●
+INPUT_PDB = str(PIPELINE_ROOT.parent / "examples" / "PabUPO-II_withHEMEFE_and_NNBT.pdb")  # ●
 
 HEME_NAME      = "HEM"    # ● heme residue name as it appears in the PDB
 SUBSTRATE_NAME = "UNL"    # ● substrate residue name in the PDB
@@ -47,14 +47,19 @@ LIGAND_NAMES   = [HEME_NAME, SUBSTRATE_NAME]   # heme first — leave as is
 
 # The MSA RF3 folds designs against. Build it ONCE per enzyme with
 #     python partial_diffusion/scripts/00_make_msa.py
-# which writes inputs/<pdb_stem>_A.a3m.gz — found automatically by the line
-# below, so a new enzyme needs no edit here. Set an explicit path to override.
+# which writes <pdb_stem>_A.a3m.gz next to your structure — found automatically
+# by the lines below, so a new enzyme needs no edit here. The search looks
+# beside INPUT_PDB first, then in inputs/, so it works whether your structure
+# is your own (inputs/) or one of the bundled examples (examples/).
+# Set an explicit path to override.
 #
 # Empty ("" — i.e. no MSA file present) means RF3 folds single-sequence. That
 # is a legitimate choice, but pLDDT runs markedly lower, so drop PLDDT_CUT to
 # ~0.70 or the gate will reject nearly every design for the wrong reason.
-_msa_default    = PIPELINE_ROOT.parent / "inputs" / f"{Path(INPUT_PDB).stem}_A.a3m.gz"
-NATIVE_MSA_PATH = str(_msa_default) if _msa_default.exists() else ""   # ●
+_msa_name       = f"{Path(INPUT_PDB).stem}_A.a3m.gz"
+_msa_candidates = [Path(INPUT_PDB).parent / _msa_name,
+                   PIPELINE_ROOT.parent / "examples" / _msa_name]
+NATIVE_MSA_PATH = next((str(p) for p in _msa_candidates if p.exists()), "")   # ●
 
 # ===========================================================================
 # ◆ PER EXPERIMENT — THE MAIN KNOB: which residues are allowed to change

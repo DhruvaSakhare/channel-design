@@ -49,7 +49,7 @@ LIB_ROOT      = PIPELINE_ROOT.parent / "lib"
 # identical -- but docked_clean writes the UNL substrate as ATOM rather
 # than HETATM, so every ligand-aware step misses it. CAVER finds 0
 # tunnels in docked_clean and 40 in this file. See KNOWN_ISSUES.md.
-INPUT_PDB = str(PIPELINE_ROOT.parent / "inputs" / "mroupo_nnbt_fixed.pdb")  # ●
+INPUT_PDB = str(PIPELINE_ROOT.parent / "examples" / "mroupo_nnbt_fixed.pdb")  # ●
 
 HEME_NAME      = "HEM"    # ● heme residue name as it appears in the PDB
 SUBSTRATE_NAME = "UNL"    # ● substrate residue name in the PDB

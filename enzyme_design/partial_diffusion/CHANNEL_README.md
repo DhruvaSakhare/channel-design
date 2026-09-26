@@ -61,7 +61,7 @@ print(C.EXPERIMENT, '|', len(C.FLEXIBLE_RESIDUES), 'flex |', C.WORK)
 
 ```bash
 python partial_diffusion/scripts/00_caver_channel.py \
-    inputs/PabUPO-II_withHEMEFE_and_NNBT.pdb \
+    examples/PabUPO-II_withHEMEFE_and_NNBT.pdb \
     --exclude 52,85,137,205,212,215,296,339      # your catalytic residues
 ```
 
@@ -92,7 +92,7 @@ silently re-measure the *old* backbone.
 ```bash
 NEW=$(ls -dt "$PIPELINE_WORK_ROOT"/*/probe_* | head -1)
 python partial_diffusion/scripts/08_probe_channel.py $NEW/diffusion_out/*.cif.gz \
-    --baseline inputs/PabUPO-II_withHEMEFE_and_NNBT_baseline.json
+    --baseline examples/PabUPO-II_withHEMEFE_and_NNBT_baseline.json
 ```
 
 Prints `WIDER` / `NARROWER` / `UNCHANGED`, suggests the next change, and logs
@@ -126,7 +126,7 @@ cat $W/best_designs/best_designs.csv | wc -l
 # the actual question: did the channel stay open?
 python partial_diffusion/scripts/07_caver_rescore.py \
     --designs $W/best_designs \
-    --baseline inputs/PabUPO-II_withHEMEFE_and_NNBT_baseline.json
+    --baseline examples/PabUPO-II_withHEMEFE_and_NNBT_baseline.json
 ```
 
 174 designs takes 1.5–3 h, so use `--limit 20` for a quick read or submit it as

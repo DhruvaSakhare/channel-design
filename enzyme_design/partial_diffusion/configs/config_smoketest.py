@@ -21,7 +21,7 @@ EXPERIMENT = "smoketest_flow_check_02"   # bump the number to rerun clean
 PIPELINE_ROOT = Path(__file__).resolve().parent.parent
 LIB_ROOT      = PIPELINE_ROOT.parent / "lib"
 
-INPUT_PDB = str(PIPELINE_ROOT.parent / "inputs" / "PabUPO-II_withHEMEFE_and_NNBT.pdb")
+INPUT_PDB = str(PIPELINE_ROOT.parent / "examples" / "PabUPO-II_withHEMEFE_and_NNBT.pdb")
 
 HEME_NAME      = "HEM"
 SUBSTRATE_NAME = "UNL"
@@ -30,8 +30,10 @@ LIGAND_NAMES   = [HEME_NAME, SUBSTRATE_NAME]
 # Auto-detect the standard MSA location (same rule config.py itself uses).
 # If it's missing, `00_submit_all.py --auto-msa` builds it fresh before
 # queueing anything — that's part of what this smoke test is meant to prove.
-_msa_default = PIPELINE_ROOT.parent / "inputs" / f"{Path(INPUT_PDB).stem}_A.a3m.gz"
-NATIVE_MSA_PATH = str(_msa_default) if _msa_default.exists() else ""
+_msa_name       = f"{Path(INPUT_PDB).stem}_A.a3m.gz"
+_msa_candidates = [Path(INPUT_PDB).parent / _msa_name,
+                   PIPELINE_ROOT.parent / "inputs" / _msa_name]
+NATIVE_MSA_PATH = next((str(p) for p in _msa_candidates if p.exists()), "")   # ●
 
 FLEXIBLE_RESIDUES = [
     92, 195, 207,

@@ -30,7 +30,8 @@ Full enzyme PDB  →  RFD3 partial diffusion  →  LigandMPNN (sequences)  →  
 
 ## What you need before starting
 
-1. Your full enzyme PDB in `../inputs/` with:
+1. Your full enzyme PDB in `../inputs/` (that directory is yours and ships
+   empty — our own structures live in `../examples/`) with:
    - Solvent and non-essential HETATMs removed
    - Heme on its own chain (e.g. chain B)
    - Your substrate on its own chain (e.g. chain C), positioned ~4–5 Å above the iron
@@ -76,7 +77,7 @@ python partial_diffusion/scripts/00_make_msa.py
 ```
 
 This reads chain A out of `INPUT_PDB`, runs a ColabFold/MMseqs2 search, and
-writes `../inputs/<pdb_stem>_A.a3m.gz`. `config.py` finds that file by name, so
+writes `<pdb_stem>_A.a3m.gz` beside your structure. `config.py` finds it by name, so
 **a new enzyme needs no config edit** — build the MSA and it is picked up.
 
 It talks to `https://api.colabfold.com` over plain HTTP with no extra
@@ -212,7 +213,7 @@ name, input PDB, catalytic residues and substrate SMILES (see the
 python partial_diffusion/scripts/00_prep_pdb.py --check
 ```
 
-**Step 4 — build the MSA** (once per enzyme; skip if `../inputs/<pdb_stem>_A.a3m.gz`
+**Step 4 — build the MSA** (once per enzyme; skip if `<pdb_stem>_A.a3m.gz`
 already exists):
 ```bash
 python partial_diffusion/scripts/00_make_msa.py
@@ -299,7 +300,7 @@ Only needed if you want to run a single stage by hand. Run all commands from
 **Stage 0 — native MSA** (login node, no job; once per enzyme)
 ```bash
 python partial_diffusion/scripts/00_make_msa.py
-# writes ../inputs/<pdb_stem>_A.a3m.gz, picked up automatically by config.py
+# writes <pdb_stem>_A.a3m.gz beside the structure, picked up automatically
 ```
 
 **Stage 1 — RFD3 partial diffusion**
@@ -528,7 +529,7 @@ Edit **`partial_diffusion/config.py`** — the only file you need to change.
 | `CONTIG` | Auto = whole chain — override only for de-novo loop rebuild |
 | `SUBSTRATE_SMILES` | SMILES of substrate (leave blank if using `SUBSTRATE_CCD`) |
 | `SUBSTRATE_CCD` | CCD code of substrate (leave blank if using `SUBSTRATE_SMILES`) |
-| `NATIVE_MSA_PATH` | MSA RF3 folds against. *Auto-discovered* as `../inputs/<pdb_stem>_A.a3m.gz` — build it with `00_make_msa.py`, don't edit. `""` = single-sequence (lower `PLDDT_CUT` to match) |
+| `NATIVE_MSA_PATH` | MSA RF3 folds against. *Auto-discovered* as `<pdb_stem>_A.a3m.gz` beside `INPUT_PDB`, then in `../inputs/` — build it with `00_make_msa.py`, don't edit. `""` = single-sequence (lower `PLDDT_CUT` to match) |
 | `PLDDT_CUT` | Min enzyme pLDDT to pass (default 0.70) |
 | `PAE_CUT` | Max enzyme–substrate PAE in Å to pass (default 12.0) |
 | `IPSAE_CUT` | Min substrate ipSAE to pass (default 0.40) |
@@ -719,7 +720,7 @@ ones. If your designs "all look the same", check this first.
 ### MSA vs. single-sequence folding
 
 `NATIVE_MSA_PATH` controls what RF3 conditions on at stage 4. It is resolved by
-convention — `../inputs/<pdb_stem>_A.a3m.gz` if that file exists, otherwise `""`
+convention — `<pdb_stem>_A.a3m.gz` beside the structure if it exists, otherwise `""`
 (single-sequence). Build it with `00_make_msa.py`; no config edit needed.
 
 | | MSA | Single-sequence |
