@@ -1,3 +1,4 @@
+import subprocess
 import sys
 from pathlib import Path
 
@@ -8,3 +9,35 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 # same two entries the stage scripts put on sys.path themselves.
 sys.path.insert(0, str(REPO_ROOT / "enzyme_design"))
 sys.path.insert(0, str(REPO_ROOT / "enzyme_design" / "lib"))
+
+
+# Directories that never hold source we ship, used when git is unavailable.
+_SKIP_DIRS = {
+    ".git", "__pycache__", ".pytest_cache", ".venv", "venv", "third_party",
+    "work", "outputs", ".idea", ".vscode", ".mypy_cache", ".ruff_cache",
+}
+
+
+def repo_files(pattern="*"):
+    """Every file this repository ships, as absolute paths.
+
+    Prefers `git ls-files`, which knows exactly what is tracked. Falls back to
+    walking the tree when git is absent -- the CI image has no git, and the
+    tests should also work for someone who downloaded a zip rather than
+    cloning. The fallback skips build and output directories so the two answers
+    agree in practice.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), "ls-files", pattern],
+            capture_output=True, text=True, check=True,
+        )
+        return [REPO_ROOT / line for line in out.stdout.splitlines() if line]
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        pass
+
+    return [
+        path for path in sorted(REPO_ROOT.rglob(pattern))
+        if path.is_file()
+        and not any(part in _SKIP_DIRS for part in path.relative_to(REPO_ROOT).parts)
+    ]

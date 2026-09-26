@@ -8,9 +8,8 @@ Both are the kind of thing that comes back the next time someone copies a
 file in, so it is asserted rather than remembered.
 """
 import re
-import subprocess
 
-from conftest import REPO_ROOT
+from conftest import REPO_ROOT, repo_files
 
 # Cluster paths and DTU-style user ids.
 FORBIDDEN_TEXT = re.compile(
@@ -26,17 +25,9 @@ FORBIDDEN_NAMES = (
 )
 
 
-def _tracked_files():
-    out = subprocess.run(
-        ["git", "-C", str(REPO_ROOT), "ls-files"],
-        capture_output=True, text=True, check=True,
-    )
-    return [REPO_ROOT / line for line in out.stdout.splitlines() if line]
-
-
 def test_no_machine_specific_paths():
     offenders = []
-    for path in _tracked_files():
+    for path in repo_files():
         if path.name == "test_no_machine_paths.py":
             continue  # this file names the patterns on purpose
         try:
@@ -57,7 +48,7 @@ def test_no_binaries_or_licence_restricted_files():
 
     offenders = [
         str(p.relative_to(REPO_ROOT))
-        for p in _tracked_files()
+        for p in repo_files()
         if any(fnmatch.fnmatch(p.name.lower(), pat) for pat in FORBIDDEN_NAMES)
     ]
     assert not offenders, (

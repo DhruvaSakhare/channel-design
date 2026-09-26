@@ -6,20 +6,12 @@ stage scripts, and it needs no dependencies at all -- so it runs in CI on a
 bare python image where numpy and matplotlib are not installed.
 """
 import py_compile
-import subprocess
 
 import pytest
 
-from conftest import REPO_ROOT
+from conftest import repo_files
 
-
-def _tracked_python_files():
-    out = subprocess.run(["git", "-C", str(REPO_ROOT), "ls-files", "*.py"],
-                         capture_output=True, text=True, check=True)
-    return [REPO_ROOT / line for line in out.stdout.splitlines() if line]
-
-
-FILES = _tracked_python_files()
+FILES = repo_files("*.py")
 
 
 def test_there_are_sources():
