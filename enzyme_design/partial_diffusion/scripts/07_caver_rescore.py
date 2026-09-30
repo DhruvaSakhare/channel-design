@@ -115,7 +115,11 @@ def measure(pdb_path, work_dir, args):
 def main():
     args = parse_args()
     if not cu.caver_available():
-        sys.exit(f"CAVER is not runnable here — need java on PATH and {cu.CAVER_JAR}")
+        sys.exit(f"CAVER is not runnable here — need java on PATH and {cu.CAVER_JAR}\n"
+                 "\n"
+                 "CAVER is GPLv3 and is not bundled with this repository.\n"
+                 "Get it with:  ./scripts/fetch_third_party.sh\n"
+                 "or point $CAVER_HOME at a copy you already have.")
 
     C = load_config()
 

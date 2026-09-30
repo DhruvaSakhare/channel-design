@@ -88,7 +88,12 @@ def main():
         sys.exit(f"Not found: {pdb}")
     if not cu.caver_available():
         sys.exit("CAVER is not runnable here — need java on PATH and "
-                 f"{cu.CAVER_JAR}")
+                 f"{cu.CAVER_JAR}\n"
+                 "\n"
+                 "CAVER is GPLv3 and is not bundled with this repository.\n"
+                 "Get it with:  ./scripts/fetch_third_party.sh\n"
+                 "or point $CAVER_HOME at a copy you already have.\n"
+                 "Java 8 comes with:  conda env create -f envs/docking.yml")
 
     stem    = pdb.stem
     out_dir = Path(args.out_dir).resolve() if args.out_dir else pdb.parent
