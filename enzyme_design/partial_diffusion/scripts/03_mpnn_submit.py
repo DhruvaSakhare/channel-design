@@ -25,7 +25,7 @@ _AA3TO1 = {"ALA":"A","ARG":"R","ASN":"N","ASP":"D","CYS":"C","GLN":"Q",
            "TYR":"Y","VAL":"V"}
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-C = importlib.import_module(os.environ.get("PIPELINE_BASE_CONFIG", "partial_diffusion.config"))
+C = importlib.import_module(importlib.import_module("partial_diffusion").default_config())
 sys.path.insert(0, str(C.LIB_ROOT))
 import jupyter_utils
 

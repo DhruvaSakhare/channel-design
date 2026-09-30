@@ -67,7 +67,7 @@ C = sys.modules.get("partial_diffusion.config")
 if C is None:
     import importlib
     C = importlib.import_module(
-        os.environ.get("PIPELINE_BASE_CONFIG", "partial_diffusion.config"))
+        importlib.import_module("partial_diffusion").default_config())
 
 THREE2ONE = {
     "ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q",

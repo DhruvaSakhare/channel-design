@@ -21,7 +21,7 @@ from pathlib import Path
 # Inherit the entire experiment definition from a base config. Defaults to
 # config.py; set PIPELINE_BASE_CONFIG to target a different enzyme, e.g.
 #     export PIPELINE_BASE_CONFIG=partial_diffusion.config_mroupo
-BASE_CONFIG = os.environ.get("PIPELINE_BASE_CONFIG", "partial_diffusion.config")
+BASE_CONFIG = importlib.import_module("partial_diffusion").default_config()
 _base = importlib.import_module(BASE_CONFIG)
 
 # Equivalent to `from <base> import *`, but with a module name chosen at runtime.

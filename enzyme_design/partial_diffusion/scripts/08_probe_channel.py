@@ -84,7 +84,7 @@ def parse_args():
 def load_config():
     try:
         return importlib.import_module(
-            os.environ.get("PIPELINE_BASE_CONFIG", "partial_diffusion.config"))
+            importlib.import_module("partial_diffusion").default_config())
     except Exception:
         return None
 

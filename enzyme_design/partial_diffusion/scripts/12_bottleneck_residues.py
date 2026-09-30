@@ -118,7 +118,7 @@ def main():
     else:
         try:
             C = importlib.import_module(
-                os.environ.get("PIPELINE_BASE_CONFIG", "partial_diffusion.config"))
+                importlib.import_module("partial_diffusion").default_config())
             flexible = set(getattr(C, "FLEXIBLE_RESIDUES", []))
         except Exception:
             pass

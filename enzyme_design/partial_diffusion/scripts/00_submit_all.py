@@ -27,7 +27,7 @@ import importlib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-BASE_CONFIG = os.environ.get("PIPELINE_BASE_CONFIG", "partial_diffusion.config")
+BASE_CONFIG = importlib.import_module("partial_diffusion").default_config()
 C = importlib.import_module(BASE_CONFIG)
 
 PIPELINE_ROOT = Path(__file__).resolve().parents[2]

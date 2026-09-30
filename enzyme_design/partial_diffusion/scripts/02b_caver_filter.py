@@ -89,7 +89,7 @@ def to_pdb(struct, dest_dir):
 
 def main():
     args = parse_args()
-    C = importlib.import_module(os.environ.get("PIPELINE_BASE_CONFIG", "partial_diffusion.config"))
+    C = importlib.import_module(importlib.import_module("partial_diffusion").default_config())
     C.make_workdirs()
 
     if not cu.caver_available():

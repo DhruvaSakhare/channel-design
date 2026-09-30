@@ -130,7 +130,7 @@ def main():
     C = None
     try:
         C = importlib.import_module(
-            os.environ.get("PIPELINE_BASE_CONFIG", "partial_diffusion.config"))
+            importlib.import_module("partial_diffusion").default_config())
     except Exception:
         pass
 

@@ -83,7 +83,7 @@ def load_config():
     """The run config, if we are on a machine set up for the pipeline."""
     try:
         return importlib.import_module(
-            os.environ.get("PIPELINE_BASE_CONFIG", "partial_diffusion.config"))
+            importlib.import_module("partial_diffusion").default_config())
     except Exception:
         return None
 
