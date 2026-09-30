@@ -138,6 +138,10 @@ looks like.
 
 ## Using it for your enzyme
 
+**→ [docs/walkthrough-gpu.md](docs/walkthrough-gpu.md) is the full step-by-step**,
+from cloning to ranked designs, for someone with a GPU and their own enzyme.
+The short version follows.
+
 The method is not UPO-specific. To point it at your own enzyme:
 
 1. **Prepare your structure** — ligands on their own chains, substrate ~4–5 Å
@@ -187,6 +191,7 @@ Details, and the two measurement bugs: [docs/validation.md](docs/validation.md).
 | [docs/ai-models.md](docs/ai-models.md) | which models, whose training data, how we evaluated, what the limitations are |
 | [KNOWN_ISSUES.md](KNOWN_ISSUES.md) | seven traps that each cost somebody a run, with the commands to verify them |
 | [CHANGELOG.md](CHANGELOG.md) | what was built and why |
+| [docs/walkthrough-gpu.md](docs/walkthrough-gpu.md) | **start here to run it** — twelve steps, clone to ranked designs, plus a no-GPU measurement-only path |
 | [tests/README.md](tests/README.md) | what each test protects |
 | [docs/hpc-verification.md](docs/hpc-verification.md) | step-by-step check that this runs on a cluster, and how to generate the full dependency locks |
 | [`CHANNEL_README.md`](enzyme_design/partial_diffusion/CHANNEL_README.md) | the channel-widening workflow in detail |
