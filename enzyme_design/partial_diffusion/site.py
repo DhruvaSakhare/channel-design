@@ -60,6 +60,13 @@ RF3_CKPT    = _env("RF3_CKPT",    Path(RF3_RELEASE) / "ckpt" / "rf3_latest.pt")
 
 # --- scheduler -------------------------------------------------------------
 # Queue names are site-specific; `bqueues` (LSF) lists what you have.
+#
+# These are imported by every config, which is the only reason they do
+# anything: the configs used to define their own literals instead, so these
+# two were dead code and PIPELINE_QUEUE was silently ignored (KNOWN_ISSUES #9).
+# tests/test_no_config_shadows_site.py keeps that from coming back.
+#
+# Precedence, lowest first: this default -> PIPELINE_QUEUE -> --queue.
 QUEUE     = _env("PIPELINE_QUEUE",     "gpua100")
 CPU_QUEUE = _env("PIPELINE_CPU_QUEUE", "hpc")
 

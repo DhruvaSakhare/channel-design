@@ -119,15 +119,30 @@ RF3_ENZYME_CHAIN    = "A_1"
 RF3_HEME_CHAIN      = "B_1"
 RF3_SUBSTRATE_CHAIN = "C_1"
 
-QUEUE       = "gpua100"
-CPU_QUEUE   = "hpc"
-# Install paths, checkpoints and queue names live in site.py, not here —
+# Queue names are NOT here. They used to be, as two literals that shadowed
+# site.py's -- so PIPELINE_QUEUE resolved correctly in site.py, was never
+# imported by anything, and the config literal won silently. A run would
+# print the queue it was being overridden to and submit to the other one.
+#
+#   PIPELINE_QUEUE=gpuv100 python partial_diffusion/scripts/00_submit_all.py
+#   python partial_diffusion/scripts/00_submit_all.py --queue gpuv100
+#
+# Install paths, checkpoints and queue names live in site.py, not here --
 # an experiment is portable, a filesystem is not. Override from the
-# environment (see envs/design.md), never by editing this block.  # ✗
+# environment or the CLI (see envs/design.md), never by editing this.  # ✗
 from partial_diffusion.site import (  # noqa: E402
-    CONDA_SH, MPNN_CKPT, PROTEIN_ENV, RF3_CKPT, RF3_RELEASE, RFD3_CKPT,
-    SHARED_ROOT,
+    CONDA_SH, CPU_QUEUE, MPNN_CKPT, PROTEIN_ENV, QUEUE, RF3_CKPT, RF3_RELEASE,
+    RFD3_CKPT, SHARED_ROOT,
 )
+
+# The run snapshot was applied ABOVE this import, so the two names that import
+# brings in would be reset to the machine default here -- and a stage script
+# launched as its own process would submit to a different queue than the run
+# that launched it, splitting one experiment across two queues with nothing
+# saying so. For a run in flight the snapshot is the truth; re-apply it.
+if _SNAPSHOT_PATH:
+    QUEUE     = _overrides.get("QUEUE", QUEUE)
+    CPU_QUEUE = _overrides.get("CPU_QUEUE", CPU_QUEUE)
 
 if not YOUR_NAME or YOUR_NAME == "your_name":
     raise RuntimeError("Set YOUR_NAME in config.py before running.")

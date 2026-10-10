@@ -77,7 +77,7 @@ itself depends on your card and how many designs you ask for.
 │                                        → 6 score → 7 collect        │
 │                                                                     │
 │  on a cluster instead:  00_submit_all.py   LSF arrays, parallel     │
-│                         (needs PIPELINE_QUEUE)                      │
+│      queue: --queue beats PIPELINE_QUEUE beats site.py's default    │
 └──────────────────────────┬──────────────────────────────────────────┘
                            ▼
 ┌─ DID IT WORK? ──────────────────────────────────────────────────────┐

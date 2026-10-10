@@ -43,6 +43,13 @@ def parse_args():
     p.add_argument("--partial_t", type=float, default=None, help="Override PARTIAL_T")
     p.add_argument("--contig", default=None, help="Override CONTIG")
     p.add_argument("--n_batches", type=int, default=None, help="Override RFD3_N_BATCHES")
+    p.add_argument("--queue", default=None,
+                   help="Override the GPU queue for this run (RFD3, MPNN, RF3 "
+                        "folding). Beats PIPELINE_QUEUE, which beats site.py's "
+                        "default. `bqueues` lists what you have.")
+    p.add_argument("--cpu-queue", default=None,
+                   help="Override the CPU queue for this run (prep, the CAVER "
+                        "gate, scoring -- no GPU). Beats PIPELINE_CPU_QUEUE.")
     p.add_argument("--pilot", action="store_true",
                    help="Probe run: ONE backbone, through RFD3 and the CPU CAVER "
                         "gate, then stop before MPNN and RF3 -- i.e. the same "
@@ -265,6 +272,13 @@ def main():
         C.CONTIG = args.contig
     if args.n_batches is not None:
         C.RFD3_N_BATCHES = args.n_batches
+    # Queues come from site.py via the config's import. A CLI override is the
+    # right tool for "this one run, on the other queue" -- it is the case that
+    # sent somebody editing a config file that tells them not to.
+    if args.queue is not None:
+        C.QUEUE = args.queue
+    if args.cpu_queue is not None:
+        C.CPU_QUEUE = args.cpu_queue
     if args.pilot:
         C.RFD3_BATCH_SIZE = 1
         C.RFD3_N_BATCHES = 1

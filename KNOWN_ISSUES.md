@@ -153,6 +153,41 @@ entry points drifted: the gate itself was once LSF-only, `--dry-run` was once
 local-only, and then the pilots diverged. They are separate implementations of
 one chain. If you add a stage, add it to both and extend that test.
 
+## 9. `PIPELINE_QUEUE` was ignored by every config
+
+The machine layer owns queue names — that is what `site.py` is for. But all
+seven configs and `config_template.py` each carried their own literal:
+
+```python
+QUEUE       = "gpua100"
+CPU_QUEUE   = "hpc"
+```
+
+directly under a comment reading *"queue names live in site.py, not here"*.
+Nothing imported `site.QUEUE`, so it was dead code, and `00_submit_all.py`
+reads `C.QUEUE` from the config. The result:
+
+```
+PIPELINE_QUEUE env : gpuv100
+site.QUEUE         : gpuv100     # site.py --check agreed with you
+config.QUEUE       : gpua100     # what was actually submitted
+```
+
+An override that reported success and did nothing. Every config now imports
+both names from `site.py`, and
+[`tests/test_no_config_shadows_site.py`](tests/test_no_config_shadows_site.py)
+asserts no config redefines any `site.py` name.
+
+Found while fixing it: the run snapshot is applied *before* that import, so the
+import reset both names in every stage subprocess — a `--queue` override would
+have held for the launcher and been lost for the stages, splitting one
+experiment across two queues with nothing saying so. The configs re-apply the
+snapshot after the import.
+
+There is now also `--queue` / `--cpu-queue` on `00_submit_all.py`, because the
+one-off case is what sends people editing a config that tells them not to.
+Precedence: **CLI flag → environment → `site.py` default.**
+
 ## Open work
 
 1. Finish rescoring all 174 `channel_01` designs — the current result rests on

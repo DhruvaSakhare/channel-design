@@ -108,6 +108,23 @@ and `run_local.py --stages prep-caver_filter` both stop after the gate. If you
 find them disagreeing, that is a bug and `tests/test_stage_parity.py` should
 have caught it.
 
+## Changing the queue
+
+`site.py` owns queue names, not the configs. Three ways, highest precedence
+first:
+
+```bash
+00_submit_all.py --queue gpuv100 --cpu-queue hpc    # this one run
+export PIPELINE_QUEUE=gpuv100                       # this shell
+# otherwise site.py's default
+```
+
+**Do not edit `QUEUE` in a config to change a queue.** The configs no longer
+define it, and if you find one that does, that is
+[KNOWN_ISSUES #9](../../../KNOWN_ISSUES.md) regressing — report it rather than
+working around it. Confirm the queue from `00_submit_all.py`'s own banner
+(`GPU queue :`) before the job leaves, and again with `bjobs -l` after.
+
 ## Ask the user before
 
 - **Submitting a full run** (step 6). It consumes shared GPU hours. Say what it
