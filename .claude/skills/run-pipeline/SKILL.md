@@ -15,9 +15,20 @@ most here: do not invent results. If a run failed, say it failed.
 
 ## Setting up an environment
 
-`uv` is the quickest way to the Python dependencies and needs nothing installed
-first — it fetches its own interpreter and resolves from the committed
-`uv.lock`:
+On a machine that is not set up yet, `./setup.sh` does all of it and needs no
+conda: it installs `uv` if missing, syncs every Python dependency from the
+committed `uv.lock`, downloads and checksum-verifies CAVER, and builds fpocket
+from source.
+
+```bash
+./setup.sh --check        # report what is present; installs nothing
+./setup.sh                # CPU half: tests + channel measurement
+```
+
+**Run `--check` first** and read it, rather than installing on top of a cluster
+that already has these. If the environment is already there, use it.
+
+For the Python side alone:
 
 ```bash
 uv run --extra tests pytest -q        # no setup at all; ~1 second
@@ -38,9 +49,9 @@ packages. Check for them rather than trying to pip them:
 
 | | how to get it | needed by |
 |---|---|---|
-| `fpocket` | `conda install -c bioconda fpocket`, or build from source | the pocket stage only |
+| `fpocket` | built from source by `./setup.sh`. That build fails on macOS (bundled qhull); on Linux it is the native target but **untested here** — if it fails, `conda install -c bioconda fpocket` | the pocket stage only |
 | Java 8 | any JDK; the system one is usually fine | CAVER |
-| CAVER 3.0 | `./scripts/fetch_third_party.sh` (manual download, GPLv3) | all tunnel measurement |
+| CAVER 3.0 | `./setup.sh` or `./scripts/fetch_third_party.sh` — downloaded and checksum-verified automatically | all tunnel measurement |
 | model weights | `foundry install base-models --checkpoint-dir <dir>` | the design stages |
 
 ## Before anything else: is this machine set up?
