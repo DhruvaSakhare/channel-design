@@ -10,6 +10,96 @@ the bottom.
 **Time:** about an hour of setup, most of it downloading model weights. The run
 itself depends on your card and how many designs you ask for.
 
+## The whole thing at a glance
+
+```
+┌─ SETUP ─────────────────────────────────────────────────────────────┐
+│  git clone … && cd channel-design                                   │
+│  ./setup.sh --gpu                                                   │
+│     ├─ uv                          installs itself if absent        │
+│     ├─ Python deps from uv.lock    tests + docking + boltz + design │
+│     ├─ CAVER 3.0                   downloaded, SHA-256 verified     │
+│     ├─ fpocket                     built from source                │
+│     └─ Java                        checked only, never installed    │
+│                                                                     │
+│  WEIGHTS — pick one:                                                │
+│     already have them →  name them in envs/site.env                 │
+│     do not            →  ./setup.sh --gpu --weights   (tens of GB)  │
+│                                                                     │
+│  pip install torch --index-url …/cu128    ← YOUR CUDA, do this first│
+└──────────────────────────┬──────────────────────────────────────────┘
+                           ▼
+┌─ VERIFY (free, no GPU work) ────────────────────────────────────────┐
+│  uv run --extra tests pytest -q      → expect 146 passed            │
+│  python …/site.py                    → no "DOES NOT EXIST"          │
+│  python …/run_local.py --check       → GPU visible? rfd3/mpnn on    │
+│                                        PATH? all 3 checkpoints?     │
+│  python …/run_local.py --dry-run     → prints every command, runs   │
+│                                        nothing                      │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           ▼
+┌─ PREPARE YOUR ENZYME ───────────────────────────────────────────────┐
+│  cp my_enzyme.pdb enzyme_design/inputs/                             │
+│     heme on its own chain; substrate on another, ~4–5 Å above the Fe │
+│     ⚠ ligands MUST be HETATM, not ATOM  (see KNOWN_ISSUES.md #2)    │
+│     fix_pdb_chains.py does the chain surgery                        │
+│  00_make_msa.py --pdb inputs/my_enzyme.pdb   once, CPU + network    │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           ▼
+┌─ MEASURE THE PARENT  ◀── the step that makes this worth using ──────┐
+│  00_caver_channel.py inputs/my_enzyme.pdb                 CPU       │
+│     → baseline bottleneck radius   everything is relative to it     │
+│     → FLEXIBLE_RESIDUES            chosen by geometry, not by eye   │
+│  cp config_template.py config.py  →  paste the list, set the SMILES │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           ▼
+┌─ PILOT  ◀── do not skip: this is where you save a day ──────────────┐
+│  run_local.py --stages prep-caver_filter      1 backbone, minutes   │
+│  08_probe_channel.py <work>/diffusion_out/*.cif.gz                  │
+│                                                                     │
+│          did the tunnel open?                                       │
+│                │                                                    │
+│      NO ───────┴──────► retune FLEXIBLE_RESIDUES or PARTIAL_T and   │
+│       ▲                 repeat. If it will not open on ONE backbone │
+│       └─────────────────it will not open across two hundred.        │
+│                │ YES                                                │
+└────────────────┼────────────────────────────────────────────────────┘
+                 ▼
+┌─ FULL RUN ──────────────────────────────────────────────────────────┐
+│  run_local.py                        one GPU, stages run in order   │
+│    0 prep → 1 rfd3 → 2 process → 3 caver_filter → 4 mpnn → 5 rf3    │
+│                                     ▲                               │
+│                     CPU GATE: collapsed backbones die HERE, before  │
+│                     they cost GPU time in MPNN and RF3. Fails OPEN. │
+│                                        → 6 score → 7 collect        │
+│                                                                     │
+│  on a cluster instead:  00_submit_all.py   LSF arrays, parallel     │
+│                         (needs PIPELINE_QUEUE)                      │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           ▼
+┌─ DID IT WORK? ──────────────────────────────────────────────────────┐
+│  07_caver_rescore.py        rank by MEASURED Δbottleneck, never by  │
+│                             how confident the model was             │
+│  09_compare_to_parent.py    core survived? pinned vs flexible RMSD  │
+│                             reported separately, so "fold fell      │
+│                             apart" and "tunnel moved" never blur    │
+│  10_plot_channels.py        profile overlay, parent vs designs      │
+│  11_cluster_channels.py     cluster by channel SHAPE, not one number│
+│  12_bottleneck_residues.py  what is physically blocking it — and    │
+│                             was that residue even free to move?     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+Three things worth internalising before you start:
+
+1. **`--check` before anything.** Thirty seconds, and it is the difference
+   between a clean start and discovering a missing checkpoint mid-run.
+2. **The pilot is the trick.** One backbone tells you whether the tunnel opens
+   at all. Sequence design cannot reopen a channel diffusion closed.
+3. **Stage 3 is the gate**, and it is what separates this from a plain
+   RFD3 → MPNN → RF3 script: the thing being optimised is cheap to measure on
+   CPU, so it is measured *before* the expensive stages rather than after.
+
 ---
 
 ## 1. Install

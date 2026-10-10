@@ -78,6 +78,13 @@ path, and never write one from another machine into a file.** Then verify:
 ls -l "$RFD3_CKPT" "$MPNN_CKPT" "$RF3_CKPT"
 ```
 
+## See the whole flow first
+
+`docs/walkthrough-gpu.md` opens with a diagram of the entire path — setup,
+verify, prepare, measure the parent, pilot, full run, interpret. Read it before
+planning a run; it shows where the cheap checks sit relative to the expensive
+stages, and which step answers which question.
+
 ## The order of operations, cheapest first
 
 Never skip ahead. Each step rules out a class of failure that would otherwise
