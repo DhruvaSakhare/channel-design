@@ -71,7 +71,9 @@ boltz = [
 # RFdiffusion3, RF3 and LigandMPNN all come from one upstream project. The
 # model weights are separate and are not redistributed -- see envs/design.md.
 design = [
-    "rc-foundry",
+    # rc-foundry itself requires <3.13,>=3.12, so this extra only resolves on
+    # 3.12. The other extras are fine on newer Python.
+    "rc-foundry>=0.2.0",
 ]
 
 [project.urls]

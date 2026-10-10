@@ -35,14 +35,14 @@ uv run --extra tests pytest -q        # no setup at all; ~1 second
 uv sync --extra docking               # pocket detection, docking, analysis
 ```
 
-**But do NOT use uv for the design stages on a cluster that already has an
-environment for them.** The pipeline calls `rfd3` and `mpnn` as binaries on
-`$PATH`, and `03_mpnn_submit.py` was written against a specific, custom `mpnn`
-build whose flags differ from the public LigandMPNN release. A freshly
-installed `rc-foundry` may reject them, and the failure comes at the MPNN
-stage, after diffusion has already run. Activate the existing
-`protein-design` environment instead, and if you must install a new one, verify
-the flags first — `KNOWN_ISSUES.md` section 4 has the one-command check.
+**On a cluster that already has an environment for the design stages, use
+it** rather than installing a second copy — not because the interfaces differ
+(they do not: the `mpnn`, `rfd3` and `rf3` commands this pipeline calls are
+`rc-foundry`'s, verified against the published wheel) but because the
+checkpoints are already there and re-downloading them wastes hours.
+
+If you do install fresh, `uv sync --extra design` gives the right interface.
+Note `rc-foundry` requires Python 3.12 exactly.
 
 **Four things no Python package manager installs**, because they are not Python
 packages. Check for them rather than trying to pip them:

@@ -74,11 +74,22 @@ from being a phenylalanine.
 
 ---
 
-## 4. Verify MPNN flags against the installed build, not the public docs
+## 4. There are two different MPNN command-line interfaces
 
-The deployed `mpnn` may be a custom build whose flag names differ from public
-LigandMPNN. Following the public documentation cost us a full 10-backbone MPNN
-stage — all ten calls died with `unrecognized arguments`.
+Following the wrong documentation cost us a full 10-backbone MPNN stage — all
+ten calls died with `unrecognized arguments`. The cause was not a local build:
+it is that two related projects ship different CLIs for these models.
+
+| project | the omit flag |
+|---|---|
+| [`dauparas/LigandMPNN`](https://github.com/dauparas/LigandMPNN) — the original | `--omit_AA_per_residue`, a **file path** of concatenated 1-letter codes |
+| [RosettaCommons/foundry](https://github.com/RosettaCommons/foundry) `mpnn` — **what this pipeline uses** | `--omit_per_residue`, **inline JSON**, values must be lists |
+
+We read the first while running the second. Verified against the published
+`rc-foundry` wheel: all twelve flags this pipeline passes
+(`--omit_per_residue`, `--is_legacy_weights`, `--fixed_residues`,
+`--designed_chains`, …) are foundry's, so **a standard `rc-foundry` install
+gives the interface this code expects.** Nothing here is DTU-specific.
 
 Test that a constraint actually constrains, by forbidding the residue's **own
 native type**. If the mechanism works, that type cannot come back:
