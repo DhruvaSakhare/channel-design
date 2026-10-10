@@ -44,12 +44,14 @@ def parse_args():
     p.add_argument("--contig", default=None, help="Override CONTIG")
     p.add_argument("--n_batches", type=int, default=None, help="Override RFD3_N_BATCHES")
     p.add_argument("--pilot", action="store_true",
-                   help="Probe run: ONE backbone, RFD3 only, then stop. Use this to "
-                        "tune the config against the channel before spending GPU on "
-                        "MPNN+RF3. If RFD3 has already squeezed the channel shut, no "
+                   help="Probe run: ONE backbone, through RFD3 and the CPU CAVER "
+                        "gate, then stop before MPNN and RF3 -- i.e. the same "
+                        "stages as `run_local.py --stages prep-caver_filter`. Use "
+                        "it to tune the config against the channel before spending "
+                        "GPU. If RFD3 has already squeezed the channel shut, no "
                         "sequence design will reopen it. Measure the result with "
-                        "08_probe_channel.py, change the config, repeat. Promote to a "
-                        "full run (no --pilot) once the backbone opens.")
+                        "08_probe_channel.py, change the config, repeat. Promote to "
+                        "a full run (no --pilot) once the backbone opens.")
     p.add_argument("--dry-run", action="store_true",
                    help="Write every submit script and print the bsub command for "
                         "each stage, but submit nothing. Use it to read exactly "
@@ -181,6 +183,17 @@ def write_script(name, wall, body, dep_id=None, gpu=True, cores=4, mem="10GB", s
         "export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\n"
     ) if gpu else ""
     cuda_line = "module load cuda/12.4\n" if gpu else ""
+    # CONDA_SH and PROTEIN_ENV empty is the documented "the environment is
+    # already active" case -- a uv or module-based install with no conda at
+    # all. Emitting the lines anyway produced `source` with no argument (an
+    # error) followed by `conda activate` with no argument, which activates
+    # *base* and so quietly replaces the interpreter the run was set up with.
+    # A worse failure than crashing, because the job still exits 0.
+    env_lines = ""
+    if C.CONDA_SH:
+        env_lines += f"source {C.CONDA_SH}\n"
+    if C.PROTEIN_ENV:
+        env_lines += f"conda activate {C.PROTEIN_ENV}\n"
     snapshot_line = (f"export PIPELINE_RUN_CONFIG={snapshot_path}\n"
                       f"export PIPELINE_BASE_CONFIG={BASE_CONFIG}\n") if snapshot_path else ""
     path.write_text(f"""#!/bin/sh
@@ -195,8 +208,9 @@ def write_script(name, wall, body, dep_id=None, gpu=True, cores=4, mem="10GB", s
 #BSUB -e {C.LOGS_DIR}/{name}_%J.err
 
 mkdir -p {C.LOGS_DIR}
-{cuda_line}source {C.CONDA_SH}
-conda activate {C.PROTEIN_ENV}
+{cuda_line}{env_lines}# `python` does not exist on every system where `python3` does. Resolve it
+# once, after any activation above, rather than hoping per command.
+PY="$(command -v python || command -v python3)"
 {gpu_lines}{snapshot_line}cd {PIPELINE_ROOT}
 {body}
 echo "Done at $(date)"
@@ -423,23 +437,6 @@ def main():
         prev_id = submit(rfd3_sh_path)
         print(f"  [1] RFD3              {"would submit" if DRY_RUN else "submitted "}  job {prev_id}")
 
-    if args.pilot:
-        print(f"\n{'='*60}")
-        print(f"  PILOT — RFD3 only, 1 backbone. MPNN/RF3 not submitted.")
-        print(f"{'='*60}")
-        when = (f"When job {prev_id} finishes, measure the channel:"
-                if prev_id else
-                "Backbones already present — measure the channel now:")
-        print(f"  {when}\n")
-        print(f"    python partial_diffusion/scripts/08_probe_channel.py \\")
-        print(f"        {C.DIFFUSION_DIR}/*.cif.gz \\")
-        print(f"        --baseline <your>_baseline.json\n")
-        print(f"  WIDER    -> rerun without --pilot for the full pipeline")
-        print(f"  NARROWER -> change the config and pilot again; the probe")
-        print(f"              prints what to try and logs each attempt")
-        print(f"{'='*60}\n")
-        return
-
     # ------------------------------------------------------------------
     # Stage 2 — filter RFD3 outputs + run MPNN
     # Split into two jobs, CPU then GPU: 02_rfd3_process.py (structural
@@ -467,12 +464,40 @@ def main():
             mem="6GB",
             snapshot_path=snapshot_path,
             body=f"""
-python partial_diffusion/scripts/02_rfd3_process.py
-python partial_diffusion/scripts/02b_caver_filter.py
+$PY partial_diffusion/scripts/02_rfd3_process.py
+$PY partial_diffusion/scripts/02b_caver_filter.py
 """)
         prev_id = submit(filter_sh)
         print(f"  [2a] process+filter    {"would submit" if DRY_RUN else "submitted "}  job {prev_id}  (CPU)")
 
+    # A pilot stops HERE, not after RFD3. It used to return before stage 2a,
+    # which meant the cluster pilot never ran 02b_caver_filter.py -- the very
+    # gate the pilot exists to exercise -- while the local pilot
+    # (run_local.py --stages prep-caver_filter) did run it. Same word, two
+    # different meanings, and the diagram in docs/walkthrough-gpu.md described
+    # the local one. Including 2a costs no GPU (it is a CPU job) and cannot
+    # destroy the backbone being probed: 02b_caver_filter.py COPIES survivors
+    # into widened/ and never deletes from diffusion_out/.
+    if args.pilot:
+        print(f"\n{'='*60}")
+        print(f"  PILOT — 1 backbone, through the CAVER gate. No MPNN, no RF3.")
+        print(f"{'='*60}")
+        when = (f"When job {prev_id} finishes, measure the channel:"
+                if prev_id else
+                "Backbones already present — measure the channel now:")
+        print(f"  {when}\n")
+        print(f"    python partial_diffusion/scripts/08_probe_channel.py \\")
+        print(f"        {C.DIFFUSION_DIR}/*.cif.gz \\")
+        print(f"        --baseline <your>_baseline.json\n")
+        print(f"  The gate's own verdict is in {C.LOGS_DIR}/caver_filter.*;")
+        print(f"  08_probe_channel.py is the number you tune against.\n")
+        print(f"  WIDER    -> rerun without --pilot for the full pipeline")
+        print(f"  NARROWER -> change the config and pilot again; the probe")
+        print(f"              prints what to try and logs each attempt")
+        print(f"{'='*60}\n")
+        return
+
+    if not mpnn_done:
         # ~4 min/backbone (model reload + design), min 30 min, capped for a tight
         # wall so a hung GPU job is reaped quickly instead of holding a GPU for
         # hours. Format as H:MM.
@@ -483,7 +508,7 @@ python partial_diffusion/scripts/02b_caver_filter.py
             dep_id=prev_id,
             snapshot_path=snapshot_path,
             body=f"""
-python partial_diffusion/scripts/03_mpnn_submit.py
+$PY partial_diffusion/scripts/03_mpnn_submit.py
 
 echo "--- Running MPNN ---"
 while IFS= read -r cmd; do
@@ -516,7 +541,7 @@ done < {C.CMDS_DIR}/mpnn.cmds
             mem="4GB",
             snapshot_path=snapshot_path,
             body=f"""
-python partial_diffusion/scripts/04_rf3_submit.py
+$PY partial_diffusion/scripts/04_rf3_submit.py
 
 # rf3.sh below is submitted as its OWN later bsub job, so it won't inherit
 # PIPELINE_RUN_CONFIG / PIPELINE_BASE_CONFIG from this job's environment —
@@ -536,6 +561,15 @@ sed -i '1a export PIPELINE_RUN_CONFIG={snapshot_path}\\nexport PIPELINE_BASE_CON
     rf3_launcher_sh = C.SUBMIT_DIR / "rf3_launcher.sh"
     rf3_sh = C.SUBMIT_DIR / "rf3.sh"
     launcher_dep = f'#BSUB -w "ended({prev_id})"' if prev_id else ""
+    # Same conditional activation as write_script, spelled out again because
+    # this script is written by hand rather than through it. SCORE_CMD is a
+    # single shell string run later, so its activation is && -joined.
+    launcher_env = f"source {C.CONDA_SH}\n\n" if C.CONDA_SH else ""
+    score_activate = ""
+    if C.CONDA_SH:
+        score_activate += f" && source {C.CONDA_SH}"
+    if C.PROTEIN_ENV:
+        score_activate += f" && conda activate {C.PROTEIN_ENV}"
     rf3_launcher_sh.write_text(f"""#!/bin/sh
 #BSUB -q {C.CPU_QUEUE}
 #BSUB -J rf3_launcher
@@ -546,9 +580,9 @@ sed -i '1a export PIPELINE_RUN_CONFIG={snapshot_path}\\nexport PIPELINE_BASE_CON
 #BSUB -o {C.LOGS_DIR}/rf3_launcher_%J.out
 #BSUB -e {C.LOGS_DIR}/rf3_launcher_%J.err
 
-source {C.CONDA_SH}
+{launcher_env}PY="$(command -v python || command -v python3)"
 
-SCORE_CMD="export PIPELINE_RUN_CONFIG={snapshot_path} && export PIPELINE_BASE_CONFIG={BASE_CONFIG} && source {C.CONDA_SH} && conda activate {C.PROTEIN_ENV} && cd {PIPELINE_ROOT} && python partial_diffusion/scripts/05_rf3_score.py && python partial_diffusion/scripts/06_collect_best.py && echo Done"
+SCORE_CMD="export PIPELINE_RUN_CONFIG={snapshot_path} && export PIPELINE_BASE_CONFIG={BASE_CONFIG}{score_activate} && cd {PIPELINE_ROOT} && $PY partial_diffusion/scripts/05_rf3_score.py && $PY partial_diffusion/scripts/06_collect_best.py && echo Done"
 
 # All done — nothing left to submit
 if [ -f {C.SCORES_DIR}/rf3_metrics.csv ]; then

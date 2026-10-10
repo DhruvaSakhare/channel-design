@@ -125,7 +125,10 @@ else
                     warn "  brew install fpocket        # if your tap has it"
                     ;;
                 *)
-                    warn "Install a prebuilt one instead:"
+                    # The source build is tested on Linux x86_64 and works
+                    # there, so a failure here is this machine, not fpocket.
+                    warn "The source build is known to work on Linux x86_64,"
+                    warn "so check build.log before reaching for a prebuilt:"
                     warn "  conda install -c bioconda fpocket"
                     ;;
             esac
@@ -135,16 +138,21 @@ else
 fi
 
 # ----------------------------------------------------------------- Java -----
-say "Java (CAVER 3.0 wants 8)"
+say "Java (CAVER 3.0 needs a JDK)"
 if command -v java >/dev/null 2>&1; then
     v="$(java -version 2>&1 | head -1)"
     ok "$v"
+    # CAVER 3.0 is a 2013 Java 8 application, so a newer JDK is a fair worry.
+    # It is not one: 8 and 17 are both tested (docs/validation.md). Anything
+    # else is merely untested, which is not the same as broken -- if CAVER
+    # throws, that is the thing to report.
     case "$v" in
-        *1.8*|*\"8*) ;;
-        *) warn "CAVER 3.0 is a Java 8 application; newer JDKs usually work but" ;;
+        *1.8*|*\"8*|*\"17*) ;;
+        *) warn "untested JDK. 8 and 17 are both known to work; if CAVER"
+           warn "throws a Java error, that is worth reporting." ;;
     esac
 else
-    bad "no java. Any JDK will do; 8 is what CAVER was built against."
+    bad "no java. CAVER cannot run without one. 8 and 17 both work."
 fi
 
 # -------------------------------------------------------------- summary -----

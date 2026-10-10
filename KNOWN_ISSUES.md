@@ -140,6 +140,19 @@ question in the method: see
 
 ---
 
+## 8. The two drivers' pilots were not the same pilot
+
+`run_local.py --stages prep-caver_filter` ran RFD3 **and** the CAVER gate.
+`00_submit_all.py --pilot` returned straight after RFD3, so on a cluster the
+pilot never ran `02b_caver_filter.py` — the one stage a pilot exists to
+exercise. Both now stop after the gate, and
+[`tests/test_stage_parity.py`](tests/test_stage_parity.py) asserts it.
+
+Worth recording rather than just fixing, because it is the third time these two
+entry points drifted: the gate itself was once LSF-only, `--dry-run` was once
+local-only, and then the pilots diverged. They are separate implementations of
+one chain. If you add a stage, add it to both and extend that test.
+
 ## Open work
 
 1. Finish rescoring all 174 `channel_01` designs — the current result rests on
@@ -151,3 +164,6 @@ question in the method: see
    in `08_probe_channel.py` is still a guess.
 4. Move the apo/holo and filename-staging rules into `caver_pipeline/` so both
    entry points share them (issue 1).
+5. Give `00_submit_all.py` and `run_local.py` one shared chain-building
+   function. `tests/test_stage_parity.py` catches drift after the fact; a single
+   definition of the chain would make drift impossible (issue 8).

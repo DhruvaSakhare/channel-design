@@ -31,7 +31,8 @@ pip install --user -r envs/requirements-tests.txt
 python3 -m pytest tests/ -q
 ```
 
-**Expect:** `119 passed, 1 skipped`.
+**Expect:** `0 failed`. One skip is normal. The pass count itself grows as
+tests are added, so match on failures, not on the total.
 
 If `test_no_machine_paths.py` fails here, something machine-specific came back
 in during the transfer — read what it names before going further.
@@ -82,7 +83,7 @@ PIPELINE_BASE_CONFIG=partial_diffusion.configs.config_smoketest \
 **Expect:** the full list of commands the pipeline would submit, with real
 checkpoint paths and your scratch directory. Read them. Nothing runs.
 
-## 4. Pilot run (one backbone, RFD3 only — the real test)
+## 4. Pilot run (one backbone, through the CAVER gate — the real test)
 
 ```bash
 PIPELINE_BASE_CONFIG=partial_diffusion.configs.config_smoketest \
@@ -90,7 +91,13 @@ PIPELINE_BASE_CONFIG=partial_diffusion.configs.config_smoketest \
 bjobs
 ```
 
-**Expect:** jobs submitted, and output under `$PIPELINE_WORK_ROOT/example/`.
+**Expect:** two jobs — RFD3 on the GPU queue, then `caver_filter` on the CPU
+queue, chained on it — and output under `$PIPELINE_WORK_ROOT/example/`. MPNN and
+RF3 are not submitted; that is what makes it a pilot.
+
+The second job is the one worth reading: it runs `02_rfd3_process.py` then
+`02b_caver_filter.py`, so the pilot tells you whether the channel actually
+opened, not merely whether RFD3 ran.
 
 > Remember that `caver_filter` and `rf3_prep` can report `signal 9` /
 > `TERM_EXTERNAL_SIGNAL` while having completed successfully — check whether
@@ -159,10 +166,10 @@ environments are then fully locked rather than direct-pinned.
 
 | step | result |
 |---|---|
-| 1. tests | `119 passed`? |
+| 1. tests | 0 failed? |
 | 2. site.py | all `[env]`, all paths exist? |
 | 3. dry run | commands look right? |
-| 4. pilot | jobs ran, output written? |
+| 4. pilot | both jobs ran; gate reported a width? |
 | 5. smoke test | Tier 2 passed? |
 | 6. locks | committed? |
 

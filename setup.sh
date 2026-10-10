@@ -11,7 +11,10 @@
 #   2. Python deps -- from the committed uv.lock, so versions are exact
 #   3. CAVER 3.0   -- downloaded from caver.cz, checksum verified
 #   4. fpocket     -- built from source (it is a C program; there is no wheel)
-#   5. Java        -- checked, not installed; any JDK will do
+#   5. Java        -- checked, not installed. 8 or 17 both work.
+#
+# envs/site.env is read first if it exists, so everything below reports YOUR
+# paths rather than the repo-relative defaults.
 #
 # Model checkpoints are NOT downloaded unless you pass --weights: they are tens
 # of GB and are frequently already on a shared filesystem. If you have them,
@@ -39,7 +42,7 @@ for arg in "$@"; do
         --weights) WANT_WEIGHTS=1 ;;
         --check) CHECK_ONLY=1 ;;
         -y|--yes) ASSUME_YES=1 ;;
-        -h|--help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "unknown option: $arg (try --help)" >&2; exit 2 ;;
     esac
 done
@@ -55,6 +58,26 @@ ask() {   # ask "question" -> 0 if yes
     printf '   %s [y/N] ' "$1"; read -r reply
     case "$reply" in [Yy]*) return 0 ;; *) return 1 ;; esac
 }
+
+# -------------------------------------------------------- site overrides ----
+# Read the site file BEFORE anything reports what resolved. Without this, a
+# correctly configured cluster -- checkpoints on a shared filesystem, named in
+# envs/site.env -- got four "<-- DOES NOT EXIST" lines from the checkpoint
+# section below, because site.py was reading repo-relative defaults out of an
+# environment nothing had populated. Four false alarms on a working install.
+if [ -f envs/site.env ]; then
+    set -a                      # so plain assignments export too, not just
+    . ./envs/site.env           # the `export` lines
+    set +a
+    SITE_ENV_READ=1
+else
+    SITE_ENV_READ=0
+fi
+
+if [ "$SITE_ENV_READ" = 1 ]; then
+    say "Site overrides"
+    ok "read envs/site.env -- the paths reported below are yours, not defaults"
+fi
 
 # ------------------------------------------------------------------- uv -----
 say "uv"
@@ -124,6 +147,8 @@ if [ "$CHECK_ONLY" = 1 ] || [ "$WANT_WEIGHTS" = 0 ]; then
     warn "are done. Otherwise either:"
     warn "  name them in envs/site.env   (if you already have them somewhere)"
     warn "  ./setup.sh --gpu --weights   (~tens of GB)"
+    [ "$SITE_ENV_READ" = 0 ] && [ -f envs/dtu-hpc.env.example ] && \
+        warn "  (no envs/site.env here yet: cp envs/dtu-hpc.env.example envs/site.env)"
 else
     if ! command -v uv >/dev/null 2>&1; then
         bad "needs uv"

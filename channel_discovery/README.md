@@ -129,7 +129,7 @@ python3 hpc/preflight_inputs.py /path/to/my_structures --report preflight.tsv
 | Python ≥ 3.8 with `numpy`, `scipy`, `matplotlib` | both stages | pocket filtering, tunnel filtering, all plots |
 | `rdkit`, `vina`, `meeko` | Stage A docking only | the `vina` **Python bindings**, not the CLI |
 | `fpocket` | Stage A | `conda install -c bioconda fpocket` (Linux + macOS) |
-| Java ≥ 1.8 | Stage B | runs CAVER; CAVER 3.0 is happiest on Java 8 |
+| Java ≥ 1.8 | Stage B | runs CAVER. Built against Java 8; tested on 8 and 17 |
 | CAVER 3.0 | Stage B | GPLv3, **not** redistributed here — `scripts/fetch_third_party.sh`, or set `$CAVER_HOME` |
 
 On a cluster where the `bio_docking` env already exists, the job scripts

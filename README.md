@@ -168,7 +168,8 @@ redesigning rather than measuring:
 uv run foundry install base-models --checkpoint-dir ./ckpt
 ```
 
-See [`envs/design.md`](envs/design.md). Java 8 for CAVER can be your system one.
+See [`envs/design.md`](envs/design.md). CAVER needs a JDK; your system one is
+almost certainly fine (8 and 17 are both tested).
 
 Nothing needs editing to run. Every path defaults to somewhere inside the
 checkout and takes an environment override; see

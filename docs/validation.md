@@ -112,6 +112,24 @@ the next lever is `PARTIAL_T`, not more flexible residues.
 | Resuming a batch does not double-count | `tests/test_boltz_resume.py`, written against a reproduced failure. |
 | No cluster path or user id can return | `tests/test_no_machine_paths.py`. |
 
+## Environments the pipeline has actually run in
+
+Worth stating separately from the science, because "will this install" is the
+first question a reader has and the honest answer used to be a shrug.
+
+| | tested | note |
+|---|---|---|
+| CAVER 3.0 on **JDK 8** | yes | what it was built against, in 2013 |
+| CAVER 3.0 on **JDK 17** | yes | openjdk 17.0.20.1, Red Hat build, on DTU HPC. Measured the shipped `PabUPO-II_withHEMEFE_and_NNBT.pdb` to bottleneck 0.983 Å / length 14.96 Å / throughput 0.717 — the same numbers as the Java 8 run, so the parent baseline in this document reproduces on 17 |
+| fpocket from source, **Linux x86_64** | yes | `scripts/fetch_third_party.sh` clones and builds it clean |
+| fpocket from source, **macOS arm64** | no — fails | fpocket's bundled qhull. Upstream issue, not patchable here. Only the pocket stage needs it; tunnel measurement does not |
+| `vina` wheel, **Linux x86_64** | yes | prebuilt wheel on PyPI |
+| `vina` wheel, **macOS arm64** | no wheel | builds from source, needs `brew install boost` |
+
+Both JDK rows matter for a reason beyond installation: CAVER's tunnel search is
+randomised (see negative control 2 above), so "same input, different JVM, same
+numbers" is a stronger reproducibility statement than it looks.
+
 ## What is not validated
 
 Stated plainly, because the gaps matter more than the claims:

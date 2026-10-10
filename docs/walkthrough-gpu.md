@@ -23,14 +23,16 @@ itself depends on your card and how many designs you ask for.
 │     └─ Java                        checked only, never installed    │
 │                                                                     │
 │  WEIGHTS — pick one:                                                │
-│     already have them →  name them in envs/site.env                 │
+│     already have them →  name them in envs/site.env, then re-run    │
+│                          ./setup.sh --check  (it READS site.env, so │
+│                          write it first or the report shows defaults)│
 │     do not            →  ./setup.sh --gpu --weights   (tens of GB)  │
 │                                                                     │
 │  pip install torch --index-url …/cu128    ← YOUR CUDA, do this first│
 └──────────────────────────┬──────────────────────────────────────────┘
                            ▼
 ┌─ VERIFY (free, no GPU work) ────────────────────────────────────────┐
-│  uv run --extra tests pytest -q      → expect 146 passed            │
+│  uv run --extra tests pytest -q      → 0 failed (1 skip is normal)  │
 │  python …/site.py                    → no "DOES NOT EXIST"          │
 │  python …/run_local.py --check       → GPU visible? rfd3/mpnn on    │
 │                                        PATH? all 3 checkpoints?     │
@@ -56,6 +58,7 @@ itself depends on your card and how many designs you ask for.
 ┌─ PILOT  ◀── do not skip: this is where you save a day ──────────────┐
 │  run_local.py --stages prep-caver_filter      1 backbone, minutes   │
 │  08_probe_channel.py <work>/diffusion_out/*.cif.gz                  │
+│     on a cluster:  00_submit_all.py --pilot   same stages, via LSF  │
 │                                                                     │
 │          did the tunnel open?                                       │
 │                │                                                    │
@@ -99,6 +102,11 @@ Three things worth internalising before you start:
 3. **Stage 3 is the gate**, and it is what separates this from a plain
    RFD3 → MPNN → RF3 script: the thing being optimised is cheap to measure on
    CPU, so it is measured *before* the expensive stages rather than after.
+
+Both drivers' pilots run the same stages — through the gate, stopping before
+MPNN. That is asserted in `tests/test_stage_parity.py`, because for a while
+they did not: the cluster pilot stopped one stage earlier and so could not
+answer the question a pilot is for.
 
 ---
 

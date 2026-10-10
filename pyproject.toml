@@ -15,7 +15,8 @@
 # TWO THINGS UV CANNOT INSTALL, because they are programs and not Python
 # packages. Both are documented in README.md and checked for at runtime:
 #   fpocket   MIT C binary.  conda install -c bioconda fpocket, or build it.
-#   Java 8    for CAVER 3.0. Any JDK; your system one is probably fine.
+#   Java      for CAVER 3.0. It is a Java 8 application, but 17 is tested too,
+#             so your system JDK is almost certainly fine.
 #
 # On Linux x86_64 every Python dependency here, including the vina bindings,
 # installs from a prebuilt wheel. On macOS arm64 there is no vina wheel, so the
@@ -91,3 +92,12 @@ conflicts = [
     [{ extra = "docking" }, { extra = "boltz" }],
     [{ extra = "docking" }, { extra = "design" }],
 ]
+
+[tool.pytest.ini_options]
+# Collect only our own tests. `./setup.sh` clones fpocket into third_party/,
+# and fpocket ships its own pytest suite -- which pytest then collected and
+# ran, producing 11 failures from a dependency's tests on a machine where the
+# install had in fact gone perfectly. The suite is meant to tell you about
+# THIS repository.
+testpaths = ["tests"]
+norecursedirs = ["third_party", ".venv", "work", "ckpt", "rf3"]

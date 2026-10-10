@@ -97,3 +97,83 @@ def test_all_referenced_stage_scripts_exist():
         if script == "run_local.py":
             continue
         assert (SCRIPTS / script).is_file(), f"{script} is referenced but missing"
+
+
+# ---------------------------------------------------------------------------
+# The two *pilots* must also be the same pilot.
+#
+# The full chains matched (above), and the pilots still did not. `--pilot` on
+# the LSF driver returned straight after RFD3, so it never ran
+# 02b_caver_filter.py; `run_local.py --stages prep-caver_filter` did. One word,
+# two meanings, and the walkthrough diagram described the local one -- so the
+# cluster instructions pointed at a pilot that could not answer the question
+# the pilot exists to answer.
+#
+# The invariant both drivers now share: a pilot runs through the CAVER gate and
+# stops before any GPU sequence design.
+# ---------------------------------------------------------------------------
+
+PILOT_LAST_STAGE = "caver_filter"
+
+
+def _code_lines(path):
+    """(index, line) for lines that are not comments."""
+    return [(i, line) for i, line in enumerate(path.read_text().splitlines())
+            if not line.lstrip().startswith("#")]
+
+
+def _first_line_containing(path, needle):
+    for i, line in _code_lines(path):
+        if needle in line:
+            return i
+    return None
+
+
+def test_lsf_pilot_runs_the_caver_gate():
+    """The gate must be submitted before the pilot's early return."""
+    gate = _first_line_containing(LSF, "02b_caver_filter.py")
+    pilot_return = None
+    lines = LSF.read_text().splitlines()
+    for i, line in enumerate(lines):
+        if line.strip() == "if args.pilot:" and "return" in "\n".join(lines[i:i + 25]):
+            pilot_return = i
+            break
+    assert gate is not None, "00_submit_all.py does not run the CAVER gate at all"
+    assert pilot_return is not None, "cannot find the --pilot early return"
+    assert gate < pilot_return, (
+        "00_submit_all.py returns from --pilot BEFORE submitting "
+        "02b_caver_filter.py, so a cluster pilot never exercises the channel "
+        "gate -- while run_local.py --stages prep-caver_filter does. That is "
+        "the same divergence this file was written about.")
+
+
+def test_lsf_pilot_stops_before_sequence_design():
+    """A pilot must not reach MPNN: the point is to spend no GPU past RFD3."""
+    lines = LSF.read_text().splitlines()
+    pilot_return = next(
+        i for i, line in enumerate(lines)
+        if line.strip() == "if args.pilot:" and "return" in "\n".join(lines[i:i + 25]))
+    mpnn = _first_line_containing(LSF, "03_mpnn_submit.py")
+    assert mpnn is not None and mpnn > pilot_return, (
+        "MPNN is submitted before --pilot returns; a pilot would spend GPU on "
+        "sequence design for a backbone whose channel has not been measured")
+
+
+def test_local_pilot_ends_at_the_same_stage():
+    """`--stages prep-caver_filter` must mean "everything up to the gate"."""
+    src = LOCAL.read_text()
+    names = re.findall(r'"([a-z_0-9]+)"',
+                       re.search(r"STAGES = \[(.*?)\]", src, re.S).group(1))
+    assert PILOT_LAST_STAGE in names, f"{PILOT_LAST_STAGE} is not a local stage"
+    after = names[names.index(PILOT_LAST_STAGE) + 1:]
+    assert after and after[0] == "mpnn", (
+        "the stage after the gate is not mpnn, so `--stages prep-caver_filter` "
+        f"no longer means the same thing as the LSF pilot. STAGES = {names}")
+
+
+def test_the_pilot_is_documented_as_reaching_the_gate():
+    """Whatever the code does, the docs must not promise the other pilot."""
+    help_text = LSF.read_text()
+    assert "prep-caver_filter" in help_text, (
+        "--pilot's help should name the local equivalent, so nobody has to "
+        "diff two drivers to find out whether the two pilots agree")

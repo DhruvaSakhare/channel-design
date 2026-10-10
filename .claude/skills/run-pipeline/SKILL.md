@@ -50,7 +50,7 @@ packages. Check for them rather than trying to pip them:
 | | how to get it | needed by |
 |---|---|---|
 | `fpocket` | built from source by `./setup.sh`. That build fails on macOS (bundled qhull); on Linux it is the native target but **untested here** — if it fails, `conda install -c bioconda fpocket` | the pocket stage only |
-| Java 8 | any JDK; the system one is usually fine | CAVER |
+| Java | the system JDK; 8 and 17 are both tested | CAVER |
 | CAVER 3.0 | `./setup.sh` or `./scripts/fetch_third_party.sh` — downloaded and checksum-verified automatically | all tunnel measurement |
 | model weights | `foundry install base-models --checkpoint-dir <dir>` | the design stages |
 
@@ -92,16 +92,21 @@ surface hours into a run.
 
 | # | command | costs | proves |
 |---|---|---|---|
-| 1 | `pytest -q` | seconds, CPU | the checkout is sound (expect ~146 passed) |
+| 1 | `pytest -q` | seconds, CPU | the checkout is sound. Expect **0 failed**; one skip is normal. The exact pass count grows as tests are added — do not treat a different number as a problem |
 | 2 | `python enzyme_design/partial_diffusion/site.py` | nothing | paths and checkpoints resolve |
 | 3 | `run_local.py --check` | nothing | GPU visible, `rfd3`/`mpnn` on PATH, all three checkpoints present |
 | 4 | `00_submit_all.py --dry-run` | nothing | the exact commands that would run |
-| 5 | `00_submit_all.py --pilot` | one backbone | the pipeline works end to end here |
+| 5 | `00_submit_all.py --pilot` | one backbone + one CPU job | RFD3 runs, and the CAVER gate runs on its output. Not end-to-end: MPNN and RF3 are deliberately not submitted |
 | 6 | `00_submit_all.py` | the full run | the actual experiment |
 
-**Stop and report after step 5.** A pilot that produced a backbone is the
-evidence that setup is correct. Do not proceed to a full run on your own
-initiative — see below.
+**Stop and report after step 5.** A pilot that produced a backbone *and* a
+gate verdict on it is the evidence that setup is correct. Do not proceed to a
+full run on your own initiative — see below.
+
+The pilot covers the same stages in either driver — `00_submit_all.py --pilot`
+and `run_local.py --stages prep-caver_filter` both stop after the gate. If you
+find them disagreeing, that is a bug and `tests/test_stage_parity.py` should
+have caught it.
 
 ## Ask the user before
 
@@ -142,7 +147,7 @@ PIPELINE_BASE_CONFIG=partial_diffusion.configs.config_smoketest \
 
 ```bash
 python partial_diffusion/scripts/run_local.py --check
-python partial_diffusion/scripts/run_local.py --stages prep-caver_filter   # pilot-ish
+python partial_diffusion/scripts/run_local.py --stages prep-caver_filter   # the pilot
 python partial_diffusion/scripts/run_local.py                             # all stages
 ```
 
