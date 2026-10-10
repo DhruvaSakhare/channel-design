@@ -16,10 +16,22 @@ but a substrate only reacts if it can reach the heme. That journey is a narrow
 tunnel through the protein, and for a bulky substrate the tunnel is the
 bottleneck — quite literally, a constriction under 1 Å in radius.
 
-This repository is the pipeline we built to do something about it: measure that
-tunnel, free only the residues lining it, redesign them, refold, and measure
-again. On PabUPO-II it took the bottleneck from **0.983 Å to 1.094 Å (+11.3%)**
-at pLDDT 0.96 — wider than all three reference UPO crystal structures.
+This repository is the pipeline we built to do something about it. Tunnel
+geometry is not an afterthought in it — it drives three separate decisions:
+
+| | CAVER runs on | and decides |
+|---|---|---|
+| **1** | the parent enzyme, before anything else | **which residues are allowed to move.** The hardest choice in this kind of design, made from measured geometry instead of intuition |
+| **2** | every RFdiffusion backbone, before sequence design | **which backbones survive.** The thing we are optimising for is cheap to measure on CPU, so a backbone whose channel collapsed is killed *before* it costs GPU time in LigandMPNN and RF3 |
+| **3** | every folded design | **which designs won.** Ranked by measured change in bottleneck radius, never by how confident the model was |
+
+Tunnel tools measure; generative pipelines design and filter on active-site
+geometry and fold quality. We are not aware of one that uses tunnel bottleneck
+radius as the **selector, the gate and the objective** — that loop is what this
+software is.
+
+On PabUPO-II it took the bottleneck from **0.983 Å to 1.094 Å (+11.3%)** at
+pLDDT 0.96 — wider than all three reference UPO crystal structures.
 
 The more transferable result is that **we found two bugs in how the channel was
 being measured, each larger than the effect we were trying to detect.** If you
