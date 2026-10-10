@@ -19,5 +19,8 @@ dependencies:
   - pip
   - pip:
       - boltz==2.2.1
-      - gemmi==0.7.4
+      # gemmi is NOT pinned here: boltz 2.2.1 requires gemmi==0.6.5 exactly, and
+      # naming any other version makes this environment unsatisfiable. The batch
+      # driver only uses gemmi for an optional mmCIF -> PDB conversion, so
+      # whatever boltz pulls in is what it should use.
       - numpy

@@ -18,5 +18,8 @@
 # numpy<2.0 pin above cannot coexist.
 
 boltz==2.2.1
-gemmi==0.7.4
 numpy
+
+# gemmi is deliberately NOT pinned: boltz 2.2.1 requires gemmi==0.6.5 exactly,
+# so naming a different version makes this file unsatisfiable. It is only used
+# for an optional mmCIF -> PDB conversion in the batch driver.

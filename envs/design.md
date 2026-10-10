@@ -12,7 +12,7 @@ follows is the honest recipe rather than a lockfile that could not be honoured.
 ## Install
 
 ```bash
-conda create -n protein-design python=3.11 -y
+conda create -n protein-design python=3.12 -y
 conda activate protein-design
 
 # Install torch for YOUR CUDA first -- check with `nvidia-smi`.

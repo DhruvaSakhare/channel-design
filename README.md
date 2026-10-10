@@ -42,14 +42,21 @@ run this code.
 
 ## Quickstart — 30 seconds, no GPU
 
-Needs **Python 3.10 or newer** — note that `python3` on a stock macOS is still
-3.9, so make a virtual environment rather than installing against the system
-interpreter:
-
 ```bash
 git clone https://gitlab.igem.org/2026/software/dtu-denmark/channel-design.git
 cd channel-design
-python3.12 -m venv .venv && source .venv/bin/activate   # or any python >= 3.10
+uv run --extra tests pytest -q
+```
+
+That is the whole thing — [uv](https://docs.astral.sh/uv/) installs its own
+Python and every dependency from the committed `uv.lock`, so there is nothing
+to set up first and nothing to activate. Takes about a second.
+
+Without uv (needs **Python 3.12 or newer** — `python3` on a stock macOS is
+still 3.9, so use a venv rather than the system interpreter):
+
+```bash
+python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r envs/requirements-tests.txt
 pytest -q
 ```
@@ -125,14 +132,51 @@ work is — needs no GPU at all.**
 Three environments, because they genuinely conflict: the docking stack pins
 `numpy<2.0` for the RDKit and Vina ABI, while Boltz pulls in torch.
 
+**With uv** — every Python dependency for every stage, from the committed lock:
+
+```bash
+uv sync --extra docking     # pocket detection, docking, channel analysis
+uv sync --extra boltz       # Boltz-2       (install torch for your CUDA first)
+uv sync --extra design      # RFdiffusion3 / RF3 / LigandMPNN
+```
+
+On Linux x86_64 all of it installs from prebuilt wheels, the AutoDock Vina
+bindings included. On macOS arm64 there is no vina wheel, so the docking extra
+needs boost headers (`brew install boost`) or conda.
+
+**With conda** instead:
+
 ```bash
 conda env create -f envs/docking.yml     # docking/ + channel_discovery/
 conda env create -f envs/boltz.yml       # boltz/
-./scripts/fetch_third_party.sh           # checks CAVER, fpocket, Java
 ```
+
+**Two things no Python package manager can install**, because they are programs
+rather than packages:
+
+```bash
+conda install -c bioconda fpocket   # or build it: github.com/Discngine/fpocket
+./scripts/fetch_third_party.sh      # CAVER (GPLv3) + checks Java
+```
+
+Java 8 for CAVER can be your system one. Neither of these needs conda for
+anything else — `conda` above is just the easiest way to get one C binary.
+
+The design environment additionally needs model weights, documented in
+[`envs/design.md`](envs/design.md) — RFdiffusion3, RF3 and LigandMPNN all come
+from [RosettaCommons/foundry](https://github.com/RosettaCommons/foundry) in one
+install.
+
+Nothing needs editing to run. Every path defaults to somewhere inside the
+checkout and takes an environment override; see
+[`envs/dtu-hpc.env.example`](envs/dtu-hpc.env.example) for what a cluster setup
+looks like.
+
+### Dependency files
 
 | file | what it pins |
 |---|---|
+| [`uv.lock`](uv.lock) | **the full transitive lock** for every stage, across platforms — what `uv sync` installs |
 | [`envs/requirements-tests.txt`](envs/requirements-tests.txt) | the test environment — a **full** pin, transitive dependencies included, verified against a run of the suite |
 | [`envs/docking.yml`](envs/docking.yml) + [`requirements-docking.txt`](envs/requirements-docking.txt) | direct pins for the docking and channel stages. conda is the supported path: `fpocket` and `openjdk=8` are not on PyPI, and `numpy<2.0` must be installed *before* rdkit and vina or their C extensions break |
 | [`envs/boltz.yml`](envs/boltz.yml) + [`requirements-boltz.txt`](envs/requirements-boltz.txt) | direct pins for Boltz-2. `torch` is deliberately unpinned — the right wheel depends on your driver's CUDA |

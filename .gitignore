@@ -36,6 +36,7 @@ foldx*
 # ---------------------------------------------------------------------------
 # Environments
 # ---------------------------------------------------------------------------
+# NOTE: uv.lock IS committed -- it is the dependency lockfile.
 .venv/
 venv/
 miniforge3/

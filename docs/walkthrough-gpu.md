@@ -19,7 +19,7 @@ git clone https://gitlab.igem.org/2026/software/dtu-denmark/channel-design.git
 cd channel-design
 ```
 
-Everything below needs **Python 3.10 or newer**. The conda environments pin
+Everything below needs **Python 3.12 or newer**. The conda environments pin
 their own interpreter, so this only matters if you run the test suite against
 a system Python first.
 
@@ -29,7 +29,7 @@ measurement stack pins `numpy<2.0` for the RDKit and Vina ABI.
 **The design environment:**
 
 ```bash
-conda create -n protein-design python=3.11 -y
+conda create -n protein-design python=3.12 -y
 conda activate protein-design
 
 # Install torch for YOUR CUDA version first — check with `nvidia-smi`.

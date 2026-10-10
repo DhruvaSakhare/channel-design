@@ -1,0 +1,91 @@
+# channel-design — dependency definition for uv (and plain pip).
+#
+# This is NOT a library you import; it is a set of pipeline scripts. There is no
+# build backend and `package = false` below, so uv manages an environment for
+# the scripts rather than trying to install them as a package.
+#
+# Four stages with genuinely incompatible requirements, so they are separate
+# extras rather than one dependency list:
+#
+#   uv sync --extra tests       # CPU, no external tools      -> pytest -q
+#   uv sync --extra docking     # pocket detection + docking   (needs fpocket)
+#   uv sync --extra boltz       # structure + affinity         (needs a GPU)
+#   uv sync --extra design      # RFdiffusion3 / RF3 / MPNN    (needs a GPU)
+#
+# TWO THINGS UV CANNOT INSTALL, because they are programs and not Python
+# packages. Both are documented in README.md and checked for at runtime:
+#   fpocket   MIT C binary.  conda install -c bioconda fpocket, or build it.
+#   Java 8    for CAVER 3.0. Any JDK; your system one is probably fine.
+#
+# On Linux x86_64 every Python dependency here, including the vina bindings,
+# installs from a prebuilt wheel. On macOS arm64 there is no vina wheel, so the
+# docking extra needs boost headers (brew install boost) or conda.
+
+[project]
+name = "channel-design"
+version = "1.0.0"
+description = "Widening an enzyme's substrate access tunnel with the measurement inside the design loop"
+readme = "README.md"
+license = { file = "LICENSE" }
+# 3.12 is the real floor, set by the dependencies rather than by taste:
+# rc-foundry needs >=3.12 and scipy 1.16.1 needs >=3.11, and envs/docking.yml
+# already pins python=3.12.
+requires-python = ">=3.12"
+
+# Nothing is needed to merely read the repository; every dependency belongs to
+# a stage.
+dependencies = []
+
+[project.optional-dependencies]
+# The test suite: no GPU, no cluster, no external tools, no network.
+tests = [
+    "pytest>=8",
+    "pyyaml>=6",
+    "numpy>=1.26",
+    "matplotlib>=3.8",
+]
+
+# Pocket detection, docking, and the CAVER wrapper's analysis scripts.
+# numpy<2 is a hard constraint, not caution: the rdkit and vina C extensions
+# are built against the 1.x ABI.
+docking = [
+    "numpy<2.0",
+    "vina==1.2.7",
+    "meeko==0.7.1",
+    "rdkit==2025.9.5",
+    "scipy==1.16.1",
+    "matplotlib>=3.8",
+    "py3Dmol==2.5.4",
+    "stmol==0.0.9",
+]
+
+# Boltz-2. torch is deliberately absent: the right wheel depends on your
+# driver's CUDA version, so install it yourself first --
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128
+# gemmi is also deliberately unpinned; boltz requires an exact version of it.
+boltz = [
+    "boltz==2.2.1",
+    "numpy",
+]
+
+# RFdiffusion3, RF3 and LigandMPNN all come from one upstream project. The
+# model weights are separate and are not redistributed -- see envs/design.md.
+design = [
+    "rc-foundry",
+]
+
+[project.urls]
+Repository = "https://gitlab.igem.org/2026/software/dtu-denmark/channel-design"
+Wiki = "https://2026.igem.wiki/dtu-denmark/software"
+
+[tool.uv]
+# A collection of scripts, not an installable distribution.
+package = false
+
+# These cannot share one environment, and saying so lets uv lock each
+# separately instead of failing to find a universal resolution: the docking
+# stack pins numpy<2 for its C extensions, while torch and foundry want 2.x.
+conflicts = [
+    [{ extra = "docking" }, { extra = "boltz" }],
+    [{ extra = "docking" }, { extra = "design" }],
+]

@@ -5,9 +5,9 @@ from pathlib import Path
 # Stock macOS ships Python 3.9 as `python3`, and the pinned test dependencies
 # need 3.10 or newer -- so the first command in the README used to fail with a
 # wall of pip version errors. Say so plainly instead.
-if sys.version_info < (3, 10):
+if sys.version_info < (3, 12):
     raise SystemExit(
-        f"This project needs Python 3.10 or newer; you are running "
+        f"This project needs Python 3.12 or newer; you are running "
         f"{sys.version.split()[0]} from {sys.executable}.\n"
         "\n"
         "On macOS `python3` is often the system 3.9. Make a virtual "
