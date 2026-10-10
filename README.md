@@ -132,45 +132,49 @@ work is — needs no GPU at all.**
 Three environments, because they genuinely conflict: the docking stack pins
 `numpy<2.0` for the RDKit and Vina ABI, while Boltz pulls in torch.
 
-**With uv** — every Python dependency for every stage, from the committed lock:
-
 ```bash
-uv sync --extra docking     # pocket detection, docking, channel analysis
-uv sync --extra boltz       # Boltz-2       (install torch for your CUDA first)
-uv sync --extra design      # RFdiffusion3 / RF3 / LigandMPNN
+./setup.sh            # the CPU half: tests + channel measurement
+./setup.sh --gpu      # also Boltz-2 and the design stages
+./setup.sh --check    # report what is present, install nothing
 ```
 
-On Linux x86_64 all of it installs from prebuilt wheels, the AutoDock Vina
-bindings included. On macOS arm64 there is no vina wheel, so the docking extra
-needs boost headers (`brew install boost`) or conda.
+That is everything: it installs [uv](https://docs.astral.sh/uv/) if you do not
+have it (asking first), installs every Python dependency from the committed
+`uv.lock`, downloads **CAVER 3.0** from caver.cz and verifies its checksum, and
+builds **fpocket** from source. **No conda required.** Re-running is safe, and
+`$CAVER_HOME` / `$FPOCKET` are honoured if you already have either.
 
-**With conda** instead:
+Two caveats worth knowing:
+
+- **fpocket's source build fails on macOS** — a known problem in its bundled
+  qhull. Use `conda install -c bioconda fpocket` there. It is only needed for
+  the *pocket* stage; tunnel measurement does not use it.
+- **On macOS arm64 there is no AutoDock Vina wheel**, so the docking extra
+  needs boost headers (`brew install boost`). Linux x86_64 uses a prebuilt
+  wheel and needs nothing.
+
+Prefer to do it yourself, or already have conda? The pieces are independent:
 
 ```bash
-conda env create -f envs/docking.yml     # docking/ + channel_discovery/
-conda env create -f envs/boltz.yml       # boltz/
+uv sync --extra tests --extra docking    # Python only
+./scripts/fetch_third_party.sh           # CAVER + fpocket only
+conda env create -f envs/docking.yml     # the conda route instead of uv
 ```
 
-**Two things no Python package manager can install**, because they are programs
-rather than packages:
+**Model weights are not fetched** — tens of GB, and only needed if you are
+redesigning rather than measuring:
 
 ```bash
-conda install -c bioconda fpocket   # or build it: github.com/Discngine/fpocket
-./scripts/fetch_third_party.sh      # CAVER (GPLv3) + checks Java
+uv run foundry install base-models --checkpoint-dir ./ckpt
 ```
 
-Java 8 for CAVER can be your system one. Neither of these needs conda for
-anything else — `conda` above is just the easiest way to get one C binary.
-
-The design environment additionally needs model weights, documented in
-[`envs/design.md`](envs/design.md) — RFdiffusion3, RF3 and LigandMPNN all come
-from [RosettaCommons/foundry](https://github.com/RosettaCommons/foundry) in one
-install.
+See [`envs/design.md`](envs/design.md). Java 8 for CAVER can be your system one.
 
 Nothing needs editing to run. Every path defaults to somewhere inside the
 checkout and takes an environment override; see
-[`envs/dtu-hpc.env.example`](envs/dtu-hpc.env.example) for what a cluster setup
-looks like.
+[`envs/dtu-hpc.env.example`](envs/dtu-hpc.env.example) for a cluster setup.
+
+### Dependency files
 
 ### Dependency files
 
