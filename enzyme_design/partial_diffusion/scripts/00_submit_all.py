@@ -301,6 +301,28 @@ def main():
         C.CATRES      = C._build_catres(C.INPUT_PDB, C.FLEXIBLE_RESIDUES)
         C.FIXED_ATOMS = C._build_fixed_atoms(C.INPUT_PDB, C.FLEXIBLE_RESIDUES)
 
+    # Queue names have no default -- see site.py. Check before anything is
+    # written or submitted, and name the two queues separately, because
+    # getting CPU_QUEUE wrong is the mistake that reserves a GPU for the CAVER
+    # gate. A --dry-run is still allowed to proceed: reading the chain you
+    # would submit is useful before you know which queue you want.
+    missing = [label for label, value, flag, var in (
+        ("GPU", C.QUEUE,     "--queue",     "PIPELINE_QUEUE"),
+        ("CPU", C.CPU_QUEUE, "--cpu-queue", "PIPELINE_CPU_QUEUE"),
+    ) if not value]
+    if missing and not args.dry_run:
+        print("\nNo {} queue set, and there is no default -- queue names are "
+              "specific to your cluster.\n".format(" or ".join(missing)))
+        print("  List yours:   bqueues")
+        print("  This run:     --queue <gpu-queue> --cpu-queue <cpu-queue>")
+        print("  This shell:   export PIPELINE_QUEUE=... PIPELINE_CPU_QUEUE=...")
+        print("  Permanently:  put both in envs/site.env  (setup.sh reads it)\n")
+        print("The CPU queue is for prep, the CAVER gate and scoring. Sending")
+        print("those to a GPU queue reserves a GPU to do no GPU work.\n")
+        print("On DTU HPC: --queue gpuv100 --cpu-queue hpc  (or gpua100, which")
+        print("is usually the more contended of the two).\n")
+        sys.exit(2)
+
     ensure_msa(args)
 
     global DRY_RUN
@@ -393,8 +415,10 @@ def main():
     print(f"  Backbones   : {n_backbones}  ({C.RFD3_BATCH_SIZE} × {C.RFD3_N_BATCHES} batches)")
     print(f"  Sequences   : {n_sequences} per backbone  →  {n_designs} designs total")
     print(f"  RF3 steps   : {C.RF3_NUM_STEPS}  ({n_rf3_tasks} array tasks, {C.RF3_GROUP_SIZE} folds each)")
-    print(f"  GPU queue   : {C.QUEUE}   (RFD3, MPNN, RF3 folding)")
-    print(f"  CPU queue   : {C.CPU_QUEUE}   (prep, launcher, scoring — no GPU)")
+    # Only reachable unset under --dry-run; the guard in main() stops a real
+    # submit. Say so rather than printing a blank.
+    print(f"  GPU queue   : {C.QUEUE or '(not set)'}   (RFD3, MPNN, RF3 folding)")
+    print(f"  CPU queue   : {C.CPU_QUEUE or '(not set)'}   (prep, launcher, scoring — no GPU)")
     # If the config exposes FLEXIBLE_RESIDUES (targeted-remodel configs), echo it
     # so you can eyeball at submission time exactly which residues are free to
     # move/redesign — everything else is held rigid + native.

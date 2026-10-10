@@ -115,9 +115,19 @@ first:
 
 ```bash
 00_submit_all.py --queue gpuv100 --cpu-queue hpc    # this one run
-export PIPELINE_QUEUE=gpuv100                       # this shell
-# otherwise site.py's default
+export PIPELINE_QUEUE=gpuv100 PIPELINE_CPU_QUEUE=hpc    # this shell
+# or put both in envs/site.env, which setup.sh reads
 ```
+
+**There is no default.** `00_submit_all.py` exits 2 without a queue rather than
+guessing — a queue name is specific to the cluster, and the old default pointed
+at DTU's most contended one. `--dry-run` works without one. `run_local.py`
+never needs one.
+
+On DTU: `gpuv100` or `gpua100` for GPU, `hpc` for CPU. The two GPU queues are
+interchangeable as far as this pipeline knows; `gpua100` is usually the longer
+wait. Whether the MSA path specifically needs a100 has never been tested — if
+you run one on each, say so and it goes in `docs/validation.md`.
 
 **Do not edit `QUEUE` in a config to change a queue.** The configs no longer
 define it, and if you find one that does, that is

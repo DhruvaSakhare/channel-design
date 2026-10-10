@@ -66,9 +66,22 @@ RF3_CKPT    = _env("RF3_CKPT",    Path(RF3_RELEASE) / "ckpt" / "rf3_latest.pt")
 # two were dead code and PIPELINE_QUEUE was silently ignored (KNOWN_ISSUES #9).
 # tests/test_no_config_shadows_site.py keeps that from coming back.
 #
-# Precedence, lowest first: this default -> PIPELINE_QUEUE -> --queue.
-QUEUE     = _env("PIPELINE_QUEUE",     "gpua100")
-CPU_QUEUE = _env("PIPELINE_CPU_QUEUE", "hpc")
+# Precedence, lowest first: PIPELINE_QUEUE -> --queue.
+#
+# There is deliberately NO default. `gpua100` and `hpc` are DTU queue names;
+# they mean nothing on another cluster, and a queue name is as site-specific
+# as a path -- except that nothing here can check whether it exists, so a
+# wrong one fails in the scheduler minutes later, or worse, succeeds on the
+# wrong hardware. The old default also pointed at DTU's most contended queue
+# (694 jobs deep at the time of writing) while this repository's own README
+# said the two GPU queues are interchangeable: "if one is busy, try the
+# other". Guessing on the user's behalf was not earning its keep.
+#
+# Empty is the unset signal. `00_submit_all.py` refuses to submit without it
+# and names `bqueues`. Nothing else is affected: `run_local.py` has no
+# scheduler, so a single-GPU run never needs a queue at all.
+QUEUE     = _env("PIPELINE_QUEUE",     "")
+CPU_QUEUE = _env("PIPELINE_CPU_QUEUE", "")
 
 # --- where runs are written ------------------------------------------------
 # On a cluster this belongs on scratch, not in the repository.

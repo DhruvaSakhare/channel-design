@@ -92,3 +92,70 @@ def test_site_queues_are_actually_consumed():
     assert consumers, (
         "no config imports QUEUE from site.py, so PIPELINE_QUEUE cannot "
         "affect any run -- site.py's queue settings would be dead code again")
+
+
+# ---------------------------------------------------------------------------
+# And no cluster's queue names may be the default.
+#
+# `QUEUE` defaulted to `gpua100` and `CPU_QUEUE` to `hpc` -- DTU queue names,
+# baked into the machine layer the same way a DTU path would have been, except
+# that nothing can check a queue name exists. `gpua100` was also DTU's most
+# contended queue (694 jobs deep when measured) while this repository's own
+# README said the two GPU queues are interchangeable.
+#
+# tests/test_no_machine_paths.py catches a cluster path. This catches the same
+# mistake wearing a different hat.
+# ---------------------------------------------------------------------------
+
+# DTU's own names. Deliberately not exhaustive -- it does not need to be, it
+# needs to catch the ones that were actually baked in. Note that DTU course-code
+# queues are NOT listed: tests/test_no_machine_paths.py forbids that pattern
+# repo-wide, and it fails on this file if one appears here. It caught exactly
+# that while this test was being written, which is the system working.
+KNOWN_QUEUE_NAMES = ("gpua100", "gpuv100", "gpuamd", "hpc")
+
+
+def _default_of(name):
+    """The literal default in site.py's `_env(VAR, default)` call."""
+    for node in ast.walk(ast.parse(SITE.read_text())):
+        if (isinstance(node, ast.Assign)
+                and any(getattr(t, "id", None) == name for t in node.targets)
+                and isinstance(node.value, ast.Call)
+                and getattr(node.value.func, "id", None) == "_env"):
+            default = node.value.args[1]
+            return default.value if isinstance(default, ast.Constant) else default
+    raise AssertionError(f"site.py has no _env(...) assignment for {name}")
+
+
+@pytest.mark.parametrize("name", ["QUEUE", "CPU_QUEUE"])
+def test_queue_has_no_baked_default(name):
+    default = _default_of(name)
+    assert default == "", (
+        f"site.{name} defaults to {default!r}. A queue name is as "
+        "site-specific as a path, and unlike a path nothing here can check it "
+        "exists -- a wrong one fails in the scheduler or, worse, succeeds on "
+        "the wrong hardware. Leave it empty; 00_submit_all.py refuses to "
+        "submit without one and says how to set it.")
+
+
+def test_submit_refuses_without_a_queue():
+    """The guard, not just the empty default: an empty queue must not reach
+    `#BSUB -q`."""
+    src = (PD / "scripts" / "00_submit_all.py").read_text()
+    assert "sys.exit(2)" in src, "00_submit_all.py has no hard exit for a missing queue"
+    assert "bqueues" in src, (
+        "the missing-queue error should name `bqueues` -- the user has no "
+        "other way to find out what their cluster calls its queues")
+
+
+def test_no_queue_name_is_hardcoded_in_a_config_or_site_default():
+    """Belt and braces: the names themselves, anywhere they could win."""
+    offenders = []
+    for path in [SITE, *CONFIGS]:
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.Constant) and node.value in KNOWN_QUEUE_NAMES:
+                offenders.append(f"{path.name}:{node.lineno} = {node.value!r}")
+    assert not offenders, (
+        "cluster queue names appear as string literals in the config or "
+        "machine layer:\n  " + "\n  ".join(offenders) +
+        "\nThey belong in envs/site.env, PIPELINE_QUEUE, or --queue.")

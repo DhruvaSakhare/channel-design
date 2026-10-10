@@ -537,8 +537,8 @@ Edit **`partial_diffusion/config.py`** — the only file you need to change.
 | `RFD3_N_BATCHES` | Batches to run — total backbones = BATCH_SIZE × N_BATCHES |
 | `RF3_NUM_STEPS` | RF3 diffusion steps (50=fast, 200=production) |
 | `RF3_GROUP_SIZE` | Designs per RF3 array task (default 10) |
-| `QUEUE` | **GPU** queue for RFD3 / MPNN / RF3 folding (`gpua100`, `gpuv100`) |
-| `CPU_QUEUE` | **CPU** queue for prep / launcher / scoring — no GPU (`hpc`) |
+| `QUEUE` | **GPU** queue for RFD3 / MPNN / RF3 folding. From `site.py`, no default — set `PIPELINE_QUEUE` or pass `--queue`. On DTU: `gpua100` or `gpuv100` |
+| `CPU_QUEUE` | **CPU** queue for prep / the CAVER gate / scoring — no GPU. From `site.py`, no default — `PIPELINE_CPU_QUEUE` or `--cpu-queue`. On DTU: `hpc` |
 
 ### Targeted remodeling — choosing what changes
 
@@ -830,9 +830,20 @@ heme coordination geometry was maintained.
 
 ## Queue notes
 
-- Set both `QUEUE` (GPU) and `CPU_QUEUE` (CPU) in `config.py` — list available
-  queues with `bqueues`. `gpua100`/`gpuv100` are the GPU queues (if one is busy,
-  try the other); the CPU queue on DTU is usually `hpc`.
+- Set both queues. **Not in `config.py`** — the configs do not define them;
+  `site.py` does, and it has no default, because a queue name is specific to
+  your cluster. List yours with `bqueues`, then pick one of:
+
+  ```bash
+  00_submit_all.py --queue gpuv100 --cpu-queue hpc   # this run only
+  export PIPELINE_QUEUE=gpuv100 PIPELINE_CPU_QUEUE=hpc
+  # or put both in envs/site.env, which setup.sh reads
+  ```
+
+  On DTU, `gpua100`/`gpuv100` are the GPU queues and `hpc` is the CPU one. The
+  two GPU queues are interchangeable as far as this pipeline knows — if one is
+  busy, try the other. `gpua100` is usually the more contended; it was the
+  hardcoded default until it was measured at 694 jobs deep.
 - **Never send a non-GPU job to a GPU queue** — it reserves a GPU exclusively and
   blocks it for nothing. The pipeline already splits this automatically; just set
   `CPU_QUEUE` correctly.

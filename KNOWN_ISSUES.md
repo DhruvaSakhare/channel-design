@@ -186,7 +186,18 @@ snapshot after the import.
 
 There is now also `--queue` / `--cpu-queue` on `00_submit_all.py`, because the
 one-off case is what sends people editing a config that tells them not to.
-Precedence: **CLI flag → environment → `site.py` default.**
+Precedence: **CLI flag → environment**, and nothing below that.
+
+**There is no default queue any more.** `QUEUE` defaulted to `gpua100` and
+`CPU_QUEUE` to `hpc` — DTU queue names, baked into the machine layer the same
+way a DTU path would have been, except that nothing can check a queue name
+exists, so a wrong one fails in the scheduler minutes later or succeeds on the
+wrong hardware. `gpua100` was also DTU's most contended queue (measured 694
+jobs deep) while [the pipeline README](enzyme_design/partial_diffusion/README.md#queue-notes)
+said the two GPU queues are interchangeable. `00_submit_all.py` now exits 2 and
+names `bqueues`; `--dry-run` still works without one, since reading the chain
+is useful before you have picked. `run_local.py` is unaffected — no scheduler,
+no queue.
 
 ## Open work
 
