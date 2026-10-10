@@ -26,8 +26,8 @@ from pathlib import Path
 # ===========================================================================
 # ★ EVERY RUN — who you are and a unique name for this run
 # ===========================================================================
-YOUR_NAME  = "kristine"                       # ★ your first name, lowercase
-EXPERIMENT = "pab_upo_II_tunnel_conservative_01"  # ★ UNIQUE per run — bump the
+YOUR_NAME  = "example"                         # ★ your first name, lowercase
+EXPERIMENT = "my_first_run_01"                   # ★ UNIQUE per run — bump the
                                               #    number or name each time, or a
                                               #    re-run will just resume the old one
 

@@ -197,7 +197,7 @@ difference in wall time — the science is identical.
 Interrupted? Resume:
 
 ```bash
-python partial_diffusion/scripts/run_local.py --stages 3-6
+python partial_diffusion/scripts/run_local.py --stages mpnn-collect
 ```
 
 ## 11. Did it actually work?

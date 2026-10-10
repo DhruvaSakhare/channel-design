@@ -10,18 +10,21 @@ config.py and only replaces cluster paths).
 Usage:
   conda activate <your protein-design env>
   python partial_diffusion/scripts/run_local.py --check      # preflight only
-  python partial_diffusion/scripts/run_local.py              # stages 0-6
-  python partial_diffusion/scripts/run_local.py --stages 3-6 # resume partway
+  python partial_diffusion/scripts/run_local.py              # all stages
+  python partial_diffusion/scripts/run_local.py --stages 4-7 # resume partway
+  python partial_diffusion/scripts/run_local.py --stages mpnn-collect  # same, by name
   python partial_diffusion/scripts/run_local.py --dry-run    # print, don't run
 
 Stages:
-  0  prep      PDB sanity check (+ MSA if --auto-msa) (CPU/network)
-  1  rfd3      partial diffusion -> backbones         (GPU)
-  2  process   filter broken backbones                (CPU)
-  3  mpnn      LigandMPNN sequence design             (GPU)
-  4  rf3       RF3 folding of every design            (GPU)
-  5  score     metrics CSV + plots                    (CPU)
-  6  collect   best designs -> best_designs/          (CPU)
+  0  prep          PDB sanity check (+ MSA if --auto-msa) (CPU/network)
+  1  rfd3          partial diffusion -> backbones         (GPU)
+  2  process       filter broken backbones                (CPU)
+  3  caver_filter  channel-width gate: drop collapsed backbones
+                   BEFORE they cost GPU time downstream   (CPU)
+  4  mpnn          LigandMPNN sequence design             (GPU)
+  5  rf3           RF3 folding of every design            (GPU)
+  6  score         metrics CSV + plots                    (CPU)
+  7  collect       best designs -> best_designs/          (CPU)
 """
 import argparse
 import os
@@ -47,14 +50,25 @@ import partial_diffusion.config_local as C          # noqa: E402
 sys.modules["partial_diffusion.config"] = C
 partial_diffusion.config = C
 
-STAGES = ["prep", "rfd3", "process", "mpnn", "rf3", "score", "collect"]
+# In execution order, and deliberately the SAME SET the LSF driver runs --
+# 00_submit_all.py chains 02b_caver_filter.py after 02_rfd3_process.py, and for
+# a long time this driver did not, so a single-GPU run silently skipped the
+# channel-width gate: the one stage that makes this a measurement-driven loop
+# rather than a plain RFD3 -> MPNN -> RF3 pipeline. tests/test_stage_parity.py
+# now asserts the two drivers stay in step.
+#
+# Dispatch is by NAME below, not by position, so inserting a stage cannot
+# silently change what `--stages 4-7` means.
+STAGES = ["prep", "rfd3", "process", "caver_filter",
+          "mpnn", "rf3", "score", "collect"]
 
 
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--stages", default="0-6",
-                   help="stages to run: '0-6', '3-6', or '1,3,4' (default 0-6)")
+    p.add_argument("--stages", default=None,
+                   help="stages to run, by number or name: '0-7', '4-7', "
+                        "'1,3,4', 'mpnn-collect' (default: all)")
     p.add_argument("--check", action="store_true",
                    help="run preflight checks and exit")
     p.add_argument("--dry-run", action="store_true",
@@ -76,18 +90,38 @@ def expected_msa_path():
     return REPO_ROOT / "inputs" / f"{Path(C.INPUT_PDB).stem}_A.a3m.gz"
 
 
+def _stage_index(token):
+    """A stage number or a stage name -> its index. Names are the stable handle:
+    inserting a stage shifts every number after it, but not the names."""
+    token = token.strip()
+    if token in STAGES:
+        return STAGES.index(token)
+    try:
+        n = int(token)
+    except ValueError:
+        sys.exit(f"No such stage: {token!r}. Valid names: {', '.join(STAGES)}")
+    if n not in range(len(STAGES)):
+        sys.exit(f"No such stage: {n} — valid range is 0-{len(STAGES) - 1}")
+    return n
+
+
 def parse_stages(spec):
+    """'0-7', '4,5', 'mpnn-collect', 'caver_filter' -> sorted stage indices."""
+    if spec is None:
+        return list(range(len(STAGES)))
     picked = set()
     for part in spec.split(","):
         part = part.strip()
-        if "-" in part:
+        if not part:
+            continue
+        if "-" in part and not part.startswith("-"):
             lo, hi = part.split("-", 1)
-            picked.update(range(int(lo), int(hi) + 1))
-        elif part:
-            picked.add(int(part))
-    bad = [s for s in picked if s not in range(len(STAGES))]
-    if bad:
-        sys.exit(f"No such stage(s): {sorted(bad)} — valid range is 0-{len(STAGES)-1}")
+            # Names may themselves contain "-"? They do not today, but split
+            # once from the left and resolve each side, so "caver_filter-rf3"
+            # works and a stray dash fails loudly rather than silently.
+            picked.update(range(_stage_index(lo), _stage_index(hi) + 1))
+        else:
+            picked.add(_stage_index(part))
     return sorted(picked)
 
 
@@ -347,29 +381,43 @@ def main():
     if args.check:
         sys.exit(1 if problems else 0)
     if problems and not args.skip_preflight:
-        sys.exit("Preflight failed — fix the items above, set the matching env "
-                 "vars, or pass --skip-preflight.")
+        if args.dry_run:
+            # A dry run exists to show what WOULD happen, which is most useful
+            # before anything is installed. Report and carry on.
+            print("\n(preflight failed, but --dry-run only prints commands "
+                  "— continuing)")
+        else:
+            sys.exit("Preflight failed — fix the items above, set the matching "
+                     "env vars, or pass --skip-preflight.")
 
     C.make_workdirs()
     t_start = time.time()
+    # Keyed by name, so the mapping cannot drift out of step with STAGES the
+    # way a chain of `elif s == 4` can when a stage is inserted.
+    runners = {
+        "prep":         lambda: stage_prep(args),
+        "rfd3":         lambda: stage_rfd3(args.dry_run),
+        "process":      lambda: run_stage_script("02_rfd3_process.py", dry_run=args.dry_run),
+        # Fails OPEN by design: 02b_caver_filter.py prints why and creates
+        # nothing if CAVER is unavailable, the baseline is missing, or nothing
+        # survives -- and 03_mpnn_submit.py then falls through to the
+        # unfiltered backbones. A gate must never be able to kill the run.
+        "caver_filter": lambda: run_stage_script("02b_caver_filter.py", dry_run=args.dry_run),
+        "mpnn":         lambda: stage_mpnn(args.dry_run),
+        "rf3":          lambda: stage_rf3(args.dry_run),
+        "score":        lambda: run_stage_script("05_rf3_score.py", dry_run=args.dry_run),
+        "collect":      lambda: run_stage_script("06_collect_best.py", dry_run=args.dry_run),
+    }
+    missing = [n for n in STAGES if n not in runners]
+    if missing:                      # cannot happen unless STAGES is edited alone
+        sys.exit(f"No runner defined for stage(s): {missing}")
+
     for s in stages:
-        print(f"\n=== stage {s} — {STAGES[s]} " + "=" * 40)
+        name = STAGES[s]
+        print(f"\n=== stage {s} — {name} " + "=" * 40)
         t0 = time.time()
-        if s == 0:
-            stage_prep(args)
-        elif s == 1:
-            stage_rfd3(args.dry_run)
-        elif s == 2:
-            run_stage_script("02_rfd3_process.py", dry_run=args.dry_run)
-        elif s == 3:
-            stage_mpnn(args.dry_run)
-        elif s == 4:
-            stage_rf3(args.dry_run)
-        elif s == 5:
-            run_stage_script("05_rf3_score.py", dry_run=args.dry_run)
-        elif s == 6:
-            run_stage_script("06_collect_best.py", dry_run=args.dry_run)
-        print(f"--- stage {s} ({STAGES[s]}) finished in {time.time()-t0:.0f}s")
+        runners[name]()
+        print(f"--- stage {s} ({name}) finished in {time.time()-t0:.0f}s")
 
     print(f"\nAll requested stages done in {(time.time()-t_start)/60:.1f} min.")
     print(f"Results: {C.WORK}")
