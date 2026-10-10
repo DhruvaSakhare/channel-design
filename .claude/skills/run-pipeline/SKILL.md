@@ -13,6 +13,36 @@ not measure.**
 Read `.claude/RESPONSIBLE_AI_USE.md` if you have not. The rule that matters
 most here: do not invent results. If a run failed, say it failed.
 
+## Setting up an environment
+
+`uv` is the quickest way to the Python dependencies and needs nothing installed
+first — it fetches its own interpreter and resolves from the committed
+`uv.lock`:
+
+```bash
+uv run --extra tests pytest -q        # no setup at all; ~1 second
+uv sync --extra docking               # pocket detection, docking, analysis
+```
+
+**But do NOT use uv for the design stages on a cluster that already has an
+environment for them.** The pipeline calls `rfd3` and `mpnn` as binaries on
+`$PATH`, and `03_mpnn_submit.py` was written against a specific, custom `mpnn`
+build whose flags differ from the public LigandMPNN release. A freshly
+installed `rc-foundry` may reject them, and the failure comes at the MPNN
+stage, after diffusion has already run. Activate the existing
+`protein-design` environment instead, and if you must install a new one, verify
+the flags first — `KNOWN_ISSUES.md` section 4 has the one-command check.
+
+**Four things no Python package manager installs**, because they are not Python
+packages. Check for them rather than trying to pip them:
+
+| | how to get it | needed by |
+|---|---|---|
+| `fpocket` | `conda install -c bioconda fpocket`, or build from source | the pocket stage only |
+| Java 8 | any JDK; the system one is usually fine | CAVER |
+| CAVER 3.0 | `./scripts/fetch_third_party.sh` (manual download, GPLv3) | all tunnel measurement |
+| model weights | `foundry install base-models --checkpoint-dir <dir>` | the design stages |
+
 ## Before anything else: is this machine set up?
 
 Do this first, always. It is free and it catches most problems.
