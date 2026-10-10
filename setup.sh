@@ -13,12 +13,9 @@
 #   4. fpocket     -- built from source (it is a C program; there is no wheel)
 #   5. Java        -- checked, not installed; any JDK will do
 #
-# Model checkpoints are NOT downloaded unless you pass --weights. They are tens
-# of GB and are frequently already on a shared filesystem. The pipeline LOOKS
-# for them: set $CKPT_SEARCH_PATH to the directories to search and they are
-# picked up with no further configuration --
-#   export CKPT_SEARCH_PATH=/shared/foundry/ckpt:/shared/rf3/release/ckpt
-# Check what resolved with:
+# Model checkpoints are NOT downloaded unless you pass --weights: they are tens
+# of GB and are frequently already on a shared filesystem. If you have them,
+# name them in envs/site.env instead of downloading again. Check what resolved:
 #   python enzyme_design/partial_diffusion/site.py
 #
 # Safe to re-run: anything already present is left alone. Set $CAVER_HOME or
@@ -125,8 +122,8 @@ if [ "$CHECK_ONLY" = 1 ] || [ "$WANT_WEIGHTS" = 0 ]; then
     fi
     warn "not downloading. If the lines above point at files that exist, you"
     warn "are done. Otherwise either:"
-    warn "  export CKPT_SEARCH_PATH=/path/to/existing/ckpt   (no download)"
-    warn "  ./setup.sh --gpu --weights                       (~tens of GB)"
+    warn "  name them in envs/site.env   (if you already have them somewhere)"
+    warn "  ./setup.sh --gpu --weights   (~tens of GB)"
 else
     if ! command -v uv >/dev/null 2>&1; then
         bad "needs uv"
@@ -148,8 +145,8 @@ sys.exit(0 if missing else 1)
                 ok "installed; uv run foundry list-installed to confirm"
             else
                 bad "foundry install failed"
-                bad "Already have them somewhere? Skip the download:"
-                bad "  export CKPT_SEARCH_PATH=/path/to/ckpt"
+                bad "Already have them somewhere? Name them in envs/site.env"
+                bad "instead of downloading -- see envs/dtu-hpc.env.example."
             fi
         else
             ok "already resolvable -- nothing to download"

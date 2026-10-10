@@ -46,7 +46,11 @@ def repo_files(pattern="*"):
             ["git", "-C", str(REPO_ROOT), "ls-files", pattern],
             capture_output=True, text=True, check=True,
         )
-        return [REPO_ROOT / line for line in out.stdout.splitlines() if line]
+        # Filter to what is actually on disk: `git ls-files` still lists a
+        # file that has been deleted but not yet staged, and the suite should
+        # not break halfway through an edit.
+        return [p for p in (REPO_ROOT / line for line in out.stdout.splitlines() if line)
+                if p.is_file()]
     except (FileNotFoundError, subprocess.CalledProcessError):
         pass
 
