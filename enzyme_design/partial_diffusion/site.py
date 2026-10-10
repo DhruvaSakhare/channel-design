@@ -70,12 +70,24 @@ SHARED_ROOT = Path(_env("PIPELINE_WORK_ROOT", REPO_ROOT / "work"))
 
 def describe():
     """One line per resolved value — what a `--check` run should print."""
-    names = ("CONDA_SH", "PROTEIN_ENV", "RFD3_CKPT", "MPNN_CKPT",
-             "RF3_RELEASE", "RF3_CKPT", "QUEUE", "CPU_QUEUE", "SHARED_ROOT")
+    # Three of these are read from a differently named variable, so the origin
+    # label has to look up the env var rather than the Python name -- it used
+    # to report [default] for a QUEUE that had in fact been set.
+    names = {
+        "CONDA_SH":    "CONDA_SH",
+        "PROTEIN_ENV": "PROTEIN_ENV",
+        "RFD3_CKPT":   "RFD3_CKPT",
+        "MPNN_CKPT":   "MPNN_CKPT",
+        "RF3_RELEASE": "RF3_RELEASE",
+        "RF3_CKPT":    "RF3_CKPT",
+        "QUEUE":       "PIPELINE_QUEUE",
+        "CPU_QUEUE":   "PIPELINE_CPU_QUEUE",
+        "SHARED_ROOT": "PIPELINE_WORK_ROOT",
+    }
     out = []
-    for name in names:
+    for name, env_var in names.items():
         value = globals()[name]
-        origin = "env" if os.environ.get(name) else "default"
+        origin = "env" if os.environ.get(env_var) else "default"
         exists = ""
         if name.endswith(("_CKPT", "_RELEASE")) and str(value):
             exists = "" if Path(value).exists() else "   <-- DOES NOT EXIST"
