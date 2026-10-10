@@ -42,8 +42,14 @@ run this code.
 
 ## Quickstart — 30 seconds, no GPU
 
+Needs **Python 3.10 or newer** — note that `python3` on a stock macOS is still
+3.9, so make a virtual environment rather than installing against the system
+interpreter:
+
 ```bash
-git clone <this repo> && cd channel-design
+git clone https://gitlab.igem.org/2026/software/dtu-denmark/channel-design.git
+cd channel-design
+python3.12 -m venv .venv && source .venv/bin/activate   # or any python >= 3.10
 pip install -r envs/requirements-tests.txt
 pytest -q
 ```

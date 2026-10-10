@@ -1,5 +1,9 @@
 # Test environment -- a full, verified pin.
 #
+# REQUIRES PYTHON >= 3.10. These pins have no wheels for 3.9, which is
+# what `python3` still is on a stock macOS, so install into a venv made
+# with a newer interpreter rather than against the system Python.
+#
 # This is the one lockfile in this repository that was generated from an
 # environment the test suite actually passed in, so it is pinned all the way
 # down including transitive dependencies.

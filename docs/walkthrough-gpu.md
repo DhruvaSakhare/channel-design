@@ -19,6 +19,10 @@ git clone https://gitlab.igem.org/2026/software/dtu-denmark/channel-design.git
 cd channel-design
 ```
 
+Everything below needs **Python 3.10 or newer**. The conda environments pin
+their own interpreter, so this only matters if you run the test suite against
+a system Python first.
+
 Two environments, because they conflict — the design stack needs torch, the
 measurement stack pins `numpy<2.0` for the RDKit and Vina ABI.
 
