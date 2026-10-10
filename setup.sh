@@ -3,6 +3,7 @@
 #
 #   ./setup.sh                # the CPU half: tests + channel measurement
 #   ./setup.sh --gpu          # also the GPU stages (Boltz-2, RFdiffusion3/RF3)
+#   ./setup.sh --gpu --weights  # ...and download the model checkpoints
 #   ./setup.sh --check        # report what is present; install nothing
 #
 # What it does, in order:
@@ -11,6 +12,14 @@
 #   3. CAVER 3.0   -- downloaded from caver.cz, checksum verified
 #   4. fpocket     -- built from source (it is a C program; there is no wheel)
 #   5. Java        -- checked, not installed; any JDK will do
+#
+# Model checkpoints are NOT downloaded unless you pass --weights. They are tens
+# of GB and are frequently already on a shared filesystem. The pipeline LOOKS
+# for them: set $CKPT_SEARCH_PATH to the directories to search and they are
+# picked up with no further configuration --
+#   export CKPT_SEARCH_PATH=/shared/foundry/ckpt:/shared/rf3/release/ckpt
+# Check what resolved with:
+#   python enzyme_design/partial_diffusion/site.py
 #
 # Safe to re-run: anything already present is left alone. Set $CAVER_HOME or
 # $FPOCKET to point at copies you already have and they will be used as-is.
@@ -24,11 +33,13 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_ROOT"
 
 WANT_GPU=0
+WANT_WEIGHTS=0
 CHECK_ONLY=0
 ASSUME_YES=0
 for arg in "$@"; do
     case "$arg" in
         --gpu)   WANT_GPU=1 ;;
+        --weights) WANT_WEIGHTS=1 ;;
         --check) CHECK_ONLY=1 ;;
         -y|--yes) ASSUME_YES=1 ;;
         -h|--help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -103,6 +114,49 @@ else
     # One implementation of this, in scripts/fetch_third_party.sh -- it is also
     # the thing to run on its own when only the tools are missing.
     ./scripts/fetch_third_party.sh
+fi
+
+# ----------------------------------------------------------- checkpoints ----
+say "Model checkpoints"
+if [ "$CHECK_ONLY" = 1 ] || [ "$WANT_WEIGHTS" = 0 ]; then
+    if command -v uv >/dev/null 2>&1 && [ -d .venv ]; then
+        uv run python enzyme_design/partial_diffusion/site.py 2>/dev/null \
+            | grep -E 'CKPT|RELEASE' || true
+    fi
+    warn "not downloading. If the lines above point at files that exist, you"
+    warn "are done. Otherwise either:"
+    warn "  export CKPT_SEARCH_PATH=/path/to/existing/ckpt   (no download)"
+    warn "  ./setup.sh --gpu --weights                       (~tens of GB)"
+else
+    if ! command -v uv >/dev/null 2>&1; then
+        bad "needs uv"
+    else
+        # Skip the download if they are already resolvable -- re-fetching tens
+        # of GB onto weights that exist is the expensive mistake here.
+        if uv run python -c "
+import sys
+sys.path.insert(0, 'enzyme_design')
+from pathlib import Path
+from partial_diffusion import site
+missing = [n for n in ('RFD3_CKPT','MPNN_CKPT','RF3_CKPT')
+           if not Path(getattr(site, n)).is_file()]
+sys.exit(0 if missing else 1)
+" 2>/dev/null; then
+            echo "   downloading into $REPO_ROOT/ckpt (tens of GB) ..."
+            mkdir -p "$REPO_ROOT/ckpt"
+            if uv run foundry install base-models --checkpoint-dir "$REPO_ROOT/ckpt"; then
+                ok "installed; uv run foundry list-installed to confirm"
+            else
+                bad "foundry install failed"
+                bad "Already have them somewhere? Skip the download:"
+                bad "  export CKPT_SEARCH_PATH=/path/to/ckpt"
+            fi
+        else
+            ok "already resolvable -- nothing to download"
+            uv run python enzyme_design/partial_diffusion/site.py 2>/dev/null \
+                | grep -E 'CKPT|RELEASE' || true
+        fi
+    fi
 fi
 
 # -------------------------------------------------------------- what next ---
