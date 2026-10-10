@@ -37,7 +37,6 @@ pocket_box.py            # compute Vina search box from a pocket
 pocket_residues.py       # list residues lining a pocket
 docking.py               # run AutoDock Vina
 analyze_poses.py         # check docked poses for feasibility and orientation
-fpocket/                 # fpocket tool source and compiled binaries
 ```
 
 ---

@@ -11,6 +11,7 @@ Examples
     python3 run_fpocket.py /path/to/pdb_folder -o /path/to/results
 """
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -18,20 +19,38 @@ import tempfile
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
-VENDORED_FPOCKET = SCRIPT_DIR / "fpocket" / "bin" / "fpocket"
 
 
 def default_fpocket() -> str:
-    """Locate an fpocket binary that works on this platform.
+    """Locate an fpocket binary, or exit saying how to get one.
 
-    Prefers one on PATH (e.g. installed via `conda install -c bioconda fpocket`,
-    which works on Linux and macOS) so the pipeline is cross-platform. Falls back
-    to the vendored Linux binary only if nothing is on PATH.
+    fpocket is not redistributed with this repository: it is a platform-specific
+    C binary, and committing one is neither reproducible nor allowed here. It is
+    MIT-licensed and available several ways, so this only has to find it.
+
+    $FPOCKET wins if set, otherwise whatever is on PATH.
     """
+    override = os.environ.get("FPOCKET")
+    if override:
+        if not Path(override).is_file():
+            sys.exit(f"$FPOCKET is set but not a file: {override}")
+        return override
+
     on_path = shutil.which("fpocket")
     if on_path:
         return on_path
-    return str(VENDORED_FPOCKET)
+
+    sys.exit(
+        "fpocket not found on PATH.\n"
+        "\n"
+        "It is MIT-licensed but platform-specific, so it is not bundled here.\n"
+        "Install it whichever way suits your machine:\n"
+        "    conda install -c bioconda fpocket     # easiest, Linux and macOS\n"
+        "    (or build from source: github.com/Discngine/fpocket, `make`)\n"
+        "then re-run, or point $FPOCKET at the binary.\n"
+        "\n"
+        "The pocket stage needs it. The tunnel stage does not."
+    )
 
 
 def _fpocket_input(src: Path) -> tuple[Path, Path | None]:
