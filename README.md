@@ -5,12 +5,6 @@ measurement inside the design loop.**
 
 DTU-Denmark, iGEM 2026. Wiki: <https://2026.igem.wiki/dtu-denmark/>
 
-> Built with AI assistance. Every claim in this repository is traceable to a
-> file, a command, or a measurement — see [docs/validation.md](docs/validation.md)
-> for what is verified and what is not, and
-> [.claude/RESPONSIBLE_AI_USE.md](.claude/RESPONSIBLE_AI_USE.md) for the policy
-> we worked under.
-
 Unspecific peroxygenases (UPOs) are attractive industrial oxidation catalysts,
 but a substrate only reacts if it can reach the heme. That journey is a narrow
 tunnel through the protein, and for a bulky substrate the tunnel is the
@@ -260,6 +254,7 @@ Details, and the two measurement bugs: [docs/validation.md](docs/validation.md).
 | [CHANGELOG.md](CHANGELOG.md) | what was built and why |
 | [docs/walkthrough-gpu.md](docs/walkthrough-gpu.md) | **start here to run it** — twelve steps, clone to ranked designs, plus a no-GPU measurement-only path |
 | [tests/README.md](tests/README.md) | what each test protects |
+| [`.claude/skills/run-pipeline/SKILL.md`](.claude/skills/run-pipeline/SKILL.md) | the Claude Code skill: order of operations, what to ask before spending GPU time, failures that are not failures |
 | [docs/hpc-verification.md](docs/hpc-verification.md) | step-by-step check that this runs on a cluster, and how to generate the full dependency locks |
 | [`CHANNEL_README.md`](enzyme_design/partial_diffusion/CHANNEL_README.md) | the channel-widening workflow in detail |
 | [`CHANNEL_WIDENING_LOG.md`](enzyme_design/partial_diffusion/CHANNEL_WIDENING_LOG.md) | the lab notebook: what was tried, what failed, why it is built this way |
@@ -297,6 +292,42 @@ trajectories and full design result sets are not in this repository either; if
 they are published they will go to
 [Zenodo](https://teams.igem.org/go/deliverables/software/zenodo) with a citable
 DOI and be linked from here.
+
+---
+
+## Running it with Claude Code
+
+The repository ships a [Claude Code](https://claude.com/claude-code) skill,
+[`.claude/skills/run-pipeline/SKILL.md`](.claude/skills/run-pipeline/SKILL.md),
+for driving the pipeline on a cluster or a single GPU. Claude Code picks up
+skills in `.claude/` automatically, and [CLAUDE.md](CLAUDE.md) points at this
+one, so an assistant working in a clone of this repository uses it without
+being told to.
+
+Nothing in it is assistant-only — every command it runs is a command in this
+README. What it adds is the operational knowledge that is expensive to
+rediscover:
+
+- **The order of operations, cheapest first.** `pytest -q`, then `site.py` to
+  check that paths resolve, then `run_local.py --check`, then
+  `00_submit_all.py --dry-run`, then `--pilot`, and a full run only after
+  that. Each step rules out a class of failure that would otherwise surface
+  hours into a job.
+- **Stop after the pilot and report.** A full run spends shared GPU hours, so
+  the skill has to ask first — likewise before re-running a stage that already
+  has output, or touching anything under `$PIPELINE_WORK_ROOT`.
+- **The failures that are not failures.** `caver_filter` reporting `signal 9`
+  after writing its output, and the CAVER gate failing open by design. Both
+  look like crashes; neither is one. Check for the output files before
+  re-running anything.
+- **Never report a number nobody measured**, and never call a run successful
+  because it exited 0. Results here go on a public wiki.
+
+The queue rules are in there too, because they are the other thing that
+silently wastes a submission: `site.py` owns queue names, there is no default,
+and `00_submit_all.py` exits rather than guessing one.
+
+---
 
 ## License and citation
 
