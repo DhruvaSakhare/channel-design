@@ -164,7 +164,7 @@ That fetches RFdiffusion3, RF3 and LigandMPNN together. `ckpt/` is gitignored.
 ## 3. Tell the pipeline where things are
 
 ```bash
-cp envs/dtu-hpc.env.example envs/site.env
+cp envs/site.env.example envs/site.env
 ```
 
 Edit `envs/site.env`. On a single machine most of it can stay empty — the
@@ -342,17 +342,11 @@ conda activate channel-design-docking
 python enzyme_design/partial_diffusion/scripts/00_caver_channel.py my_enzyme.pdb
 ```
 
-Two things this does that a plain CAVER run does not, both of which changed our
-own conclusions — see [validation.md](validation.md):
-
-1. **Strips the substrate before measuring.** A bound substrate costs about
-   0.45 Å of bottleneck radius, against a 0.077 Å spread between real reference
-   structures. Comparing a holo design to an apo crystal measures the substrate,
-   not the protein.
-2. **Stages every structure under one filename.** CAVER's tunnel search is
-   randomised and seeds from the input name, so the same bytes under a
-   different name give a different answer — 0.0885 Å of spread across eight
-   names, against 0.0000 Å over six runs with one name.
+Two things this does that a plain CAVER run does not, and both changed our own
+conclusions: it **strips the substrate** before measuring, and it **stages every
+structure under one filename**. Breaking either rule produces an artifact larger
+than the effect you are trying to measure — see
+[validation.md](validation.md).
 
 ---
 
@@ -360,7 +354,7 @@ own conclusions — see [validation.md](validation.md):
 
 | symptom | look at |
 |---|---|
-| CAVER finds no tunnel | is your substrate `HETATM`? [KNOWN_ISSUES.md](../KNOWN_ISSUES.md#2-a-substrate-written-as-atom-is-invisible) |
+| CAVER finds no tunnel | is your substrate `HETATM`? [KNOWN_ISSUES.md](../KNOWN_ISSUES.md#3-a-substrate-written-as-atom-is-invisible) |
 | Every design is identical | `MPNN_TEMPERATURE` — the default of 0.1 is effectively argmax |
 | A job says `signal 9` but the output exists | it probably succeeded; check the files before re-running |
 | `--check` cannot find `rfd3` or `mpnn` | activate the design environment, or set the paths in `envs/site.env` |

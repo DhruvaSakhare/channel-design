@@ -14,7 +14,7 @@ DTU-Denmark, iGEM 2026. Wiki: <https://2026.igem.wiki/dtu-denmark/>
 Unspecific peroxygenases (UPOs) are attractive industrial oxidation catalysts,
 but a substrate only reacts if it can reach the heme. That journey is a narrow
 tunnel through the protein, and for a bulky substrate the tunnel is the
-bottleneck — quite literally, a constriction under 1 Å in radius.
+bottleneck — quite literally, a constriction narrower than the substrate.
 
 This repository is the pipeline we built to do something about it. Tunnel
 geometry is not an afterthought in it — it drives three separate decisions:
@@ -30,8 +30,8 @@ geometry and fold quality. We are not aware of one that uses tunnel bottleneck
 radius as the **selector, the gate and the objective** — that loop is what this
 software is.
 
-On PabUPO-II it took the bottleneck from **0.983 Å to 1.094 Å (+11.3%)** at
-pLDDT 0.96 — wider than all three reference UPO crystal structures.
+We applied it to PabUPO-II; the measured results are on the
+[wiki](https://2026.igem.wiki/dtu-denmark/). This repository is the software.
 
 The more transferable result is that **we found two bugs in how the channel was
 being measured, each larger than the effect we were trying to detect.** If you
@@ -77,7 +77,7 @@ To see what the GPU pipeline *would* do, without a GPU:
 ```bash
 python enzyme_design/partial_diffusion/site.py          # what paths resolved
 PIPELINE_BASE_CONFIG=partial_diffusion.configs.config_pabupo2_channel_01 \
-  python enzyme_design/partial_diffusion/scripts/00_submit_all.py --dry-run
+  python enzyme_design/partial_diffusion/scripts/run_local.py --check
 ```
 
 ---
@@ -101,26 +101,44 @@ Full diagram and the two cross-component hand-offs:
 | 1 | [`boltz/`](boltz/) | Template-driven batch Boltz-2: one YAML per cofactor set, holo structures and binding affinity for a whole FASTA | GPU |
 | 2 | [`docking/`](docking/) | AutoDock Vina CLI — blind or targeted docking, box construction, PDBQT preparation | CPU |
 | 3 | [`channel_discovery/`](channel_discovery/) | Two-stage screen: fpocket finds the heme-proximal pocket, CAVER maps the tunnels and clusters them by shape | CPU |
-| 4 | [`enzyme_design/`](enzyme_design/) | Partial diffusion redesign: RFD3 → LigandMPNN → RF3, with CAVER measurement gating each stage | GPU |
+| 4 | [`enzyme_design/`](enzyme_design/) | Partial diffusion redesign: RFD3 → LigandMPNN → RF3, with CAVER selecting the residues, gating the backbones and ranking the folded designs | GPU |
 
 ## What you actually need to run it
 
-**You do not need a cluster.** The pipeline has three entry points, and only
-the last one assumes a scheduler:
+**You do not need a cluster.** `run_local.py` is the entry point for the whole
+design pipeline, and no part of this repository requires a scheduler:
 
 | you have | you can run | how |
 |---|---|---|
 | **A laptop, no GPU** | `docking/`, all of `channel_discovery/`, every analysis script `07`–`12`, the full test suite | `pytest -q`, `./scripts/smoke_test.sh` |
 | **One GPU, no scheduler** | The *entire* design pipeline — RFD3 → LigandMPNN → RF3 — stage by stage on a single card | `python partial_diffusion/scripts/run_local.py` |
-| **A cluster with LSF** | The same thing, submitted as job arrays for scale | `python partial_diffusion/scripts/00_submit_all.py` |
 
-`run_local.py` is the same stages as the cluster path with `bsub` taken out, so
-nothing is cluster-specific except the batch scripts themselves. It has a
-preflight mode that tells you what is missing before anything runs:
+It has a preflight mode that tells you what is missing before anything runs:
 
 ```bash
 python enzyme_design/partial_diffusion/scripts/run_local.py --check
 ```
+
+<details>
+<summary><strong>Running it on an LSF cluster instead</strong></summary>
+
+Our own campaign ran as chained LSF job arrays, which is what
+`00_submit_all.py` drives, and it is kept so those results stay reproducible.
+It needs two queue names (`bqueues` lists yours) and otherwise takes the same
+configs:
+
+```bash
+python enzyme_design/partial_diffusion/scripts/00_submit_all.py --dry-run
+python enzyme_design/partial_diffusion/scripts/00_submit_all.py \
+    --queue <gpu-queue> --cpu-queue <cpu-queue>
+```
+
+It runs the same stages as `run_local.py` — `tests/test_stage_parity.py`
+enforces that, because the two once drifted. Only the generated batch scripts
+are scheduler-specific. If your cluster runs SLURM rather than LSF, use
+`run_local.py` inside your own job script.
+
+</details>
 
 **The entire channel-measurement half of this project — where the validation
 work is — needs no GPU at all.**
@@ -173,9 +191,7 @@ almost certainly fine (8 and 17 are both tested).
 
 Nothing needs editing to run. Every path defaults to somewhere inside the
 checkout and takes an environment override; see
-[`envs/dtu-hpc.env.example`](envs/dtu-hpc.env.example) for a cluster setup.
-
-### Dependency files
+[`envs/site.env.example`](envs/site.env.example) for a cluster setup.
 
 ### Dependency files
 
@@ -188,18 +204,13 @@ checkout and takes an environment override; see
 
 The two GPU environments are pinned at the direct level rather than fully
 locked, because a complete lock has to be generated on a machine where the
-environment actually works. [docs/hpc-verification.md](docs/hpc-verification.md)
-has the commands for producing one.
+environment actually works. [`scripts/make_lockfiles.sh`](scripts/make_lockfiles.sh)
+produces one.
 
 The design environment needs model weights and is documented separately in
 [`envs/design.md`](envs/design.md) — all of RFdiffusion3, RF3 and LigandMPNN
 come from [RosettaCommons/foundry](https://github.com/RosettaCommons/foundry)
 in one install.
-
-Nothing needs editing to run. Every path defaults to somewhere inside the
-checkout and takes an environment override; see
-[`envs/dtu-hpc.env.example`](envs/dtu-hpc.env.example) for what a cluster setup
-looks like.
 
 ---
 
@@ -214,7 +225,7 @@ The method is not UPO-specific. To point it at your own enzyme:
 1. **Prepare your structure** — ligands on their own chains, substrate ~4–5 Å
    above the iron. `enzyme_design/partial_diffusion/scripts/fix_pdb_chains.py`
    does the chain surgery. *Ligands must be `HETATM`* — see
-   [KNOWN_ISSUES.md](KNOWN_ISSUES.md#2-a-substrate-written-as-atom-is-invisible).
+   [KNOWN_ISSUES.md](KNOWN_ISSUES.md#3-a-substrate-written-as-atom-is-invisible).
 2. **Copy a config** from `enzyme_design/partial_diffusion/configs/` and edit
    the tagged lines. The one list that matters is `FLEXIBLE_RESIDUES`;
    everything not in it is held rigid and native.
@@ -231,20 +242,19 @@ enzymes — `HEM`, `CU`, `ZN`, `NAD`, `FAD` all work the same way.
 
 ## Results and honesty
 
-| | |
-|---|---|
-| Best design | **1.094 Å** bottleneck, **+11.3%** over the parent, pLDDT 0.96 |
-| RFD3 backbones widened | 10/10, mean +0.057 Å |
-| Designs passing fold quality | 174/200 |
-| Folded designs measured | 16/20 widened, median +0.042 Å |
+**Measured results are not in this repository.** They live on the
+[wiki](https://2026.igem.wiki/dtu-denmark/), which is the single place they are
+reported, so there is no second copy here to drift out of date. This repository
+is the software that produced them.
 
-**Caveats we would rather you read than discover.** Those 20 designs all come
-from one backbone and are therefore correlated; the full 174-design rescore is
+**Caveats we would rather you read than discover.** The designs measured so far
+come from one backbone and are therefore correlated; the full rescore is
 unfinished. Nothing here has been tested in a lab. The ceiling on widening this
-particular channel turns out to be catalytic — the constriction is formed by
-two catalytic residues, so going much further means touching the active site.
+particular channel turns out to be catalytic — the constriction is formed by two
+catalytic residues, so going much further means touching the active site.
 
-Details, and the two measurement bugs: [docs/validation.md](docs/validation.md).
+What the software checks, and the two measurement bugs:
+[docs/validation.md](docs/validation.md).
 
 ---
 
@@ -256,11 +266,10 @@ Details, and the two measurement bugs: [docs/validation.md](docs/validation.md).
 | [docs/validation.md](docs/validation.md) | the two measurement bugs, the crystal benchmark, the design result, what is *not* validated |
 | [docs/data-formats.md](docs/data-formats.md) | every format at every boundary; the CSV contract; why there is no SBOL here |
 | [docs/ai-models.md](docs/ai-models.md) | which models, whose training data, how we evaluated, what the limitations are |
-| [KNOWN_ISSUES.md](KNOWN_ISSUES.md) | seven traps that each cost somebody a run, with the commands to verify them |
+| [KNOWN_ISSUES.md](KNOWN_ISSUES.md) | six things that break a run or quietly give a wrong answer |
 | [CHANGELOG.md](CHANGELOG.md) | what was built and why |
 | [docs/walkthrough-gpu.md](docs/walkthrough-gpu.md) | **start here to run it** — twelve steps, clone to ranked designs, plus a no-GPU measurement-only path |
 | [tests/README.md](tests/README.md) | what each test protects |
-| [docs/hpc-verification.md](docs/hpc-verification.md) | step-by-step check that this runs on a cluster, and how to generate the full dependency locks |
 | [`CHANNEL_README.md`](enzyme_design/partial_diffusion/CHANNEL_README.md) | the channel-widening workflow in detail |
 | [`CHANNEL_WIDENING_LOG.md`](enzyme_design/partial_diffusion/CHANNEL_WIDENING_LOG.md) | the lab notebook: what was tried, what failed, why it is built this way |
 

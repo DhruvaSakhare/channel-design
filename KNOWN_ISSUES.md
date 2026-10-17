@@ -1,215 +1,79 @@
-# Known issues and traps
+# Known issues
 
-Things that are wrong, or that will waste your time, written down because each
-one already cost somebody a run. Every claim here was verified against files or
-coordinates, and the check is included so you can confirm rather than trust.
+Things that will break a run or quietly give a wrong answer.
 
----
+## 1. Old `channel_discovery/` results are not comparable with new ones
 
-## 1. `channel_discovery/` does not strip the substrate
+`run_batch.py` used to keep the substrate and name the staged file after the
+input, adding an apo/holo offset plus filename-dependent noise, each larger
+than the real difference between structures
+([docs/validation.md](docs/validation.md)). It now measures apo under a constant
+filename, and `--skip-existing` **exits** rather than reuse a pre-staging
+`results/` directory, so the two can no longer end up in one table. Delete the
+old directory and rerun. `--keep-substrate` restores the old behaviour; never
+compare the two. The new path is tested but has not been run against real
+CAVER.
 
-The two measurement rules in [docs/validation.md](docs/validation.md) are
-enforced in `enzyme_design/lib/caver_utils.py`. They are **not** fixed in
-`channel_discovery/` itself: `cif_to_pdb.py` removes only water, and
-`run_batch.py` does not stage structures under a constant filename.
+## 2. On an unfamiliar structure, name the substrate
 
-**Consequence:** a run driven from `channel_discovery/` that compares designs
-against the bundled reference crystals still carries both artifacts — a ~0.45 Å
-apo/holo offset and up to 0.0885 Å of filename-dependent noise, against a real
-between-structure signal of 0.077 Å.
+Measuring apo means removing the substrate, and with no `--substrate` the code
+identifies it by elimination: every `HETATM` residue that is not a known
+cofactor, ion, water, glycan, modified amino acid or buffer. The keep lists in
+`staging.py` cover what turns up on UPO crystals, not everything the PDB
+contains, so an unfamiliar residue is still removed.
 
-**If you are measuring channels, go through the design-side wrapper.** Fixing
-this properly means moving the staging rules into `caver_pipeline/` so both
-entry points share them.
-
----
-
-## 2. A substrate written as `ATOM` is invisible
-
-`mroupo_nnbt_docked_clean.pdb` and `mroupo_nnbt_fixed.pdb` differ **only** in
-record type. Atom names, chains and chain A numbering are identical.
-
-```bash
-cd enzyme_design/inputs
-for f in mroupo_nnbt_docked_clean.pdb mroupo_nnbt_fixed.pdb; do
-  echo -n "$f: "; grep " UNL " "$f" | cut -c1-6 | sort -u | tr '\n' ' '; echo
-done
-# mroupo_nnbt_docked_clean.pdb: ATOM
-# mroupo_nnbt_fixed.pdb:        HETATM
-```
-
-Every ligand-aware step keys on `HETATM`, so in `docked_clean` the substrate is
-silently treated as protein. **CAVER finds 0 tunnels there and 40 in the fixed
-file** (best bottleneck 1.058 Å). `--trim` would have dropped the substrate
-entirely.
-
-`config_mroupo_nnbt.py` pointed at the broken file and now points at the fixed
-one. `tests/test_input_structures.py` asserts this for every shipped config.
-Use `enzyme_design/partial_diffusion/scripts/fix_pdb_chains.py` to repair a
-structure of your own.
-
----
-
-## 3. A residue in both `_CATALYTIC_PINS` and `FLEXIBLE_RESIDUES` gets no pin
-
-`_build_fixed_atoms` applies the catalytic pin only to residues **not** in the
-flexible list:
-
-```python
-return {f"{chain}{r}": _CATALYTIC_PINS.get(r, "N,CA,C,O")
-        for r in _chain_resids(pdb_path, chain) if r not in flex}
-```
-
-So a residue named in both gets **zero** pinning — full backbone freedom in
-RFD3, not the protected sidechain geometry the comment beside it implies. The
-pin is dead code, and it looks like the opposite.
-
-Worse in combination: if that residue is also in `SHRINK_RESIDUES`, then
-`OMIT_AA_AT_SHRINK` is actively forbidding the amino acid whose job the comment
-describes. A residue annotated "orients substrate toward heme" can be barred
-from being a phenylalanine.
-
-**Check your own config before running:** list residues appearing in both
-`_CATALYTIC_PINS` and `FLEXIBLE_RESIDUES`, and decide deliberately.
-
----
-
-## 4. There are two different MPNN command-line interfaces
-
-Following the wrong documentation cost us a full 10-backbone MPNN stage — all
-ten calls died with `unrecognized arguments`. The cause was not a local build:
-it is that two related projects ship different CLIs for these models.
-
-| project | the omit flag |
-|---|---|
-| [`dauparas/LigandMPNN`](https://github.com/dauparas/LigandMPNN) — the original | `--omit_AA_per_residue`, a **file path** of concatenated 1-letter codes |
-| [RosettaCommons/foundry](https://github.com/RosettaCommons/foundry) `mpnn` — **what this pipeline uses** | `--omit_per_residue`, **inline JSON**, values must be lists |
-
-We read the first while running the second. Verified against the published
-`rc-foundry` wheel: all twelve flags this pipeline passes
-(`--omit_per_residue`, `--is_legacy_weights`, `--fixed_residues`,
-`--designed_chains`, …) are foundry's, so **a standard `rc-foundry` install
-gives the interface this code expects.** Nothing here is DTU-specific.
-
-Test that a constraint actually constrains, by forbidding the residue's **own
-native type**. If the mechanism works, that type cannot come back:
+Removing too much is the dangerous direction, because a hole in the structure
+reads as extra channel width. A modified amino acid such as `MSE` or `CSO` is
+the worst case: it sits *in* the backbone. `run_batch.py` warns when it strips
+a named CCD component rather than a docking placeholder (`UNL`, `UNK`, `LIG`),
+but a warning is not a guarantee. Pass the name instead and the guess goes
+away:
 
 ```bash
-mpnn --seed 42 --structure_path "$BACKBONE" --out_directory /tmp/omit_test \
-    --batch_size 1 --number_of_batches 1 --model_type ligand_mpnn \
-    --checkpoint_path "$MPNN_CKPT" --is_legacy_weights True \
-    --omit_per_residue '{"A160": ["PHE"]}'
+00_caver_channel.py <pdb> --substrate UNL
+run_batch.py --substrate UNL
 ```
 
-Exit 0 plus a non-PHE residue at 160 means it works. Testing with a type the
-residue was not going to pick anyway proves nothing — that was our first
-mistake.
+`07_caver_rescore.py` and `02b_caver_filter.py` take it from the config's
+`SUBSTRATE_NAME` automatically. Every script prints what it stripped — read
+that line on a structure you have not measured before.
 
----
+## 3. A substrate written as `ATOM` is invisible
 
-## 5. Some "failed" jobs actually succeeded
+Ligand-aware steps key on `HETATM`, so a substrate written as `ATOM` is treated
+as protein. CAVER found 0 tunnels in `mroupo_nnbt_docked_clean.pdb` and 40 in
+`mroupo_nnbt_fixed.pdb`, which differ only in record type.
 
-`caver_filter` and `rf3_prep` report `signal 9` / `TERM_EXTERNAL_SIGNAL` while
-completing their work: the job scripts' cleanup loop takes down the shell
-before `exit 0`. **Check whether the output files exist before assuming a
-failure** and re-running an expensive stage.
+`00_prep_pdb.py --check` now names any non-amino-acid residue it finds on an
+`ATOM` line, so run it on a new structure before anything else. Repair with
+`enzyme_design/partial_diffusion/scripts/fix_pdb_chains.py`.
+`tests/test_input_structures.py` keeps shipped configs off such a file.
 
----
+## 4. A residue in both `_CATALYTIC_PINS` and `FLEXIBLE_RESIDUES` gets no pin
 
-## 6. `MPNN_TEMPERATURE` at the default makes every design identical
+`_build_fixed_atoms` pins only residues *not* in the flexible list, so a residue
+in both gets full backbone freedom — the opposite of what the annotation beside
+it implies. If it is also in `SHRINK_RESIDUES`, its own amino acid can be
+forbidden too.
 
-LigandMPNN defaults to 0.1, which is effectively argmax. With ~300 of 335
-positions pinned, the few free positions get the same residue almost every
-time, and N sequences per backbone collapse to a handful of distinct ones.
+**Now enforced:** `01_rfd3_partial_submit.py` exits before any GPU time if the
+two lists overlap, `03_mpnn_submit.py` does the same for `SHRINK_RESIDUES`, and
+`tests/test_configs.py` fails if a shipped config has the overlap.
 
-`0.25` is the shipped default here. Raise it to explore the channel lining;
-above ~0.5 expect more RF3 fold failures.
+## 5. Two different MPNN command lines exist
 
----
+`dauparas/LigandMPNN` uses `--omit_AA_per_residue` (a file); RosettaCommons
+`foundry` uses `--omit_per_residue` (inline JSON). This pipeline uses foundry's.
+Reading the wrong docs killed a full MPNN stage with `unrecognized arguments`.
 
-## 7. Nothing in the objective rewards keeping the channel open
+## 6. Some "failed" jobs actually succeeded
 
-RFD3 packs protein, and an empty channel is a void — compact packing wins. A
-dummy-atom placeholder to occupy the bore was tried and is currently **off** by
-choice, after three rounds of bug fixes (column alignment, atom-serial
-ordering, and `TUN` turning out to be a real 6-atom CCD code).
+`caver_filter` and `rf3_prep` can report `signal 9` / `TERM_EXTERNAL_SIGNAL`
+after finishing, because the cleanup loop kills the shell before `exit 0`.
+Check whether the output files exist before re-running an expensive stage.
 
-`SHRINK_RESIDUES` is the cleaner lever. This is the most important open
-question in the method: see
-[`CHANNEL_WIDENING_LOG.md`](enzyme_design/partial_diffusion/CHANNEL_WIDENING_LOG.md).
+## 7. There is no default queue
 
----
-
-## 8. The two drivers' pilots were not the same pilot
-
-`run_local.py --stages prep-caver_filter` ran RFD3 **and** the CAVER gate.
-`00_submit_all.py --pilot` returned straight after RFD3, so on a cluster the
-pilot never ran `02b_caver_filter.py` — the one stage a pilot exists to
-exercise. Both now stop after the gate, and
-[`tests/test_stage_parity.py`](tests/test_stage_parity.py) asserts it.
-
-Worth recording rather than just fixing, because it is the third time these two
-entry points drifted: the gate itself was once LSF-only, `--dry-run` was once
-local-only, and then the pilots diverged. They are separate implementations of
-one chain. If you add a stage, add it to both and extend that test.
-
-## 9. `PIPELINE_QUEUE` was ignored by every config
-
-The machine layer owns queue names — that is what `site.py` is for. But all
-seven configs and `config_template.py` each carried their own literal:
-
-```python
-QUEUE       = "gpua100"
-CPU_QUEUE   = "hpc"
-```
-
-directly under a comment reading *"queue names live in site.py, not here"*.
-Nothing imported `site.QUEUE`, so it was dead code, and `00_submit_all.py`
-reads `C.QUEUE` from the config. The result:
-
-```
-PIPELINE_QUEUE env : gpuv100
-site.QUEUE         : gpuv100     # site.py --check agreed with you
-config.QUEUE       : gpua100     # what was actually submitted
-```
-
-An override that reported success and did nothing. Every config now imports
-both names from `site.py`, and
-[`tests/test_no_config_shadows_site.py`](tests/test_no_config_shadows_site.py)
-asserts no config redefines any `site.py` name.
-
-Found while fixing it: the run snapshot is applied *before* that import, so the
-import reset both names in every stage subprocess — a `--queue` override would
-have held for the launcher and been lost for the stages, splitting one
-experiment across two queues with nothing saying so. The configs re-apply the
-snapshot after the import.
-
-There is now also `--queue` / `--cpu-queue` on `00_submit_all.py`, because the
-one-off case is what sends people editing a config that tells them not to.
-Precedence: **CLI flag → environment**, and nothing below that.
-
-**There is no default queue any more.** `QUEUE` defaulted to `gpua100` and
-`CPU_QUEUE` to `hpc` — DTU queue names, baked into the machine layer the same
-way a DTU path would have been, except that nothing can check a queue name
-exists, so a wrong one fails in the scheduler minutes later or succeeds on the
-wrong hardware. `gpua100` was also DTU's most contended queue (measured 694
-jobs deep) while [the pipeline README](enzyme_design/partial_diffusion/README.md#queue-notes)
-said the two GPU queues are interchangeable. `00_submit_all.py` now exits 2 and
-names `bqueues`; `--dry-run` still works without one, since reading the chain
-is useful before you have picked. `run_local.py` is unaffected — no scheduler,
-no queue.
-
-## Open work
-
-1. Finish rescoring all 174 `channel_01` designs — the current result rests on
-   a correlated sample of 20.
-2. Compare `channel_02` (32 flexible) against `channel_01`. If the pass rate
-   holds but the median gain does not, the constriction is backbone-limited and
-   the next lever is `PARTIAL_T`, not more residues.
-3. Measure the residual noise between near-identical structures. `--noise 0.02`
-   in `08_probe_channel.py` is still a guess.
-4. Move the apo/holo and filename-staging rules into `caver_pipeline/` so both
-   entry points share them (issue 1).
-5. Give `00_submit_all.py` and `run_local.py` one shared chain-building
-   function. `tests/test_stage_parity.py` catches drift after the fact; a single
-   definition of the chain would make drift impossible (issue 8).
+`00_submit_all.py` exits 2 until you set `PIPELINE_QUEUE` (or `--queue`) and
+`PIPELINE_CPU_QUEUE` (or `--cpu-queue`). Names come from `bqueues`. `--dry-run`
+and `run_local.py` do not need one.

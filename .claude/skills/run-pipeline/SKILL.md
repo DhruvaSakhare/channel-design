@@ -1,6 +1,6 @@
 ---
 name: run-pipeline
-description: Run or verify the channel-design enzyme pipeline on a cluster or a single GPU. Use when asked to run the pipeline, submit a design run, verify the install works here, check that paths and checkpoints resolve, re-run a stage, diagnose a failed or stuck job, or produce channel measurements. Covers the LSF path (00_submit_all.py) and the single-GPU path (run_local.py).
+description: Run or verify the channel-design enzyme pipeline on a cluster or a single GPU. Use when asked to run the pipeline, submit a design run, verify the install works here, check that paths and checkpoints resolve, re-run a stage, diagnose a failed or stuck job, or produce channel measurements. Covers the single-GPU path (run_local.py), which is the default, and the LSF path (00_submit_all.py) used for the original campaign.
 ---
 
 # Running this pipeline
@@ -68,7 +68,7 @@ Every line should print `[env]` rather than `[default]`, and every path should
 exist. If `site.env` does not exist yet:
 
 ```bash
-cp envs/dtu-hpc.env.example envs/site.env
+cp envs/site.env.example envs/site.env
 ```
 
 and fill in the real paths. **Ask the user for them — do not guess a cluster
@@ -95,9 +95,14 @@ surface hours into a run.
 | 1 | `pytest -q` | seconds, CPU | the checkout is sound. Expect **0 failed**; one skip is normal. The exact pass count grows as tests are added — do not treat a different number as a problem |
 | 2 | `python enzyme_design/partial_diffusion/site.py` | nothing | paths and checkpoints resolve |
 | 3 | `run_local.py --check` | nothing | GPU visible, `rfd3`/`mpnn` on PATH, all three checkpoints present |
-| 4 | `00_submit_all.py --dry-run` | nothing | the exact commands that would run |
-| 5 | `00_submit_all.py --pilot` | one backbone + one CPU job | RFD3 runs, and the CAVER gate runs on its output. Not end-to-end: MPNN and RF3 are deliberately not submitted |
-| 6 | `00_submit_all.py` | the full run | the actual experiment |
+| 4 | `run_local.py --dry-run` | nothing | the exact commands that would run |
+| 5 | `run_local.py --stages prep-caver_filter` | one backbone | RFD3 runs, and the CAVER gate runs on its output. Not end-to-end: MPNN and RF3 are deliberately not reached |
+| 6 | `run_local.py` | the full run | the actual experiment |
+
+On an LSF cluster the same ladder is `00_submit_all.py --dry-run`, then
+`--pilot`, then the bare command, and it additionally needs `--queue` and
+`--cpu-queue`. Prefer `run_local.py` unless the user asks for the cluster or
+needs the parallel RF3 array.
 
 **Stop and report after step 5.** A pilot that produced a backbone *and* a
 gate verdict on it is the evidence that setup is correct. Do not proceed to a
@@ -114,24 +119,22 @@ have caught it.
 first:
 
 ```bash
-00_submit_all.py --queue gpuv100 --cpu-queue hpc    # this one run
-export PIPELINE_QUEUE=gpuv100 PIPELINE_CPU_QUEUE=hpc    # this shell
+00_submit_all.py --queue <gpu-queue> --cpu-queue <cpu-queue>    # this one run
+export PIPELINE_QUEUE=<gpu-queue> PIPELINE_CPU_QUEUE=<cpu-queue>    # this shell
 # or put both in envs/site.env, which setup.sh reads
 ```
 
 **There is no default.** `00_submit_all.py` exits 2 without a queue rather than
 guessing — a queue name is specific to the cluster, and the old default pointed
-at DTU's most contended one. `--dry-run` works without one. `run_local.py`
-never needs one.
+at the most contended queue on the cluster this was written for. `--dry-run`
+works without one. `run_local.py` never needs one.
 
-On DTU: `gpuv100` or `gpua100` for GPU, `hpc` for CPU. The two GPU queues are
-interchangeable as far as this pipeline knows; `gpua100` is usually the longer
-wait. Whether the MSA path specifically needs a100 has never been tested — if
-you run one on each, say so and it goes in `docs/validation.md`.
+**Ask the user for their queue names; do not guess one.** `bqueues` lists what
+a cluster has. Any GPU queue works as far as this pipeline knows.
 
 **Do not edit `QUEUE` in a config to change a queue.** The configs no longer
 define it, and if you find one that does, that is
-[KNOWN_ISSUES #9](../../../KNOWN_ISSUES.md) regressing — report it rather than
+`tests/test_no_config_shadows_site.py` failing — report it rather than
 working around it. Confirm the queue from `00_submit_all.py`'s own banner
 (`GPU queue :`) before the job leaves, and again with `bjobs -l` after.
 
@@ -163,19 +166,19 @@ before concluding anything.
 
 ## Running it
 
-**On a cluster (LSF):**
-
-```bash
-PIPELINE_BASE_CONFIG=partial_diffusion.configs.config_smoketest \
-  python partial_diffusion/scripts/00_submit_all.py --pilot
-```
-
-**On one GPU, no scheduler:**
+**On one GPU, no scheduler — the default path:**
 
 ```bash
 python partial_diffusion/scripts/run_local.py --check
 python partial_diffusion/scripts/run_local.py --stages prep-caver_filter   # the pilot
 python partial_diffusion/scripts/run_local.py                             # all stages
+```
+
+**On an LSF cluster** (needs two queue names; see *Changing the queue* above):
+
+```bash
+PIPELINE_BASE_CONFIG=partial_diffusion.configs.config_smoketest \
+  python partial_diffusion/scripts/00_submit_all.py --pilot
 ```
 
 `--stages` accepts names as well as numbers; names are stable, numbers shift if
@@ -207,7 +210,7 @@ most often:
   zero tunnels and every ligand-aware step misses the substrate. Check with
   `grep " UNL " file.pdb | cut -c1-6 | sort -u` before blaming anything else.
 - **Never compare a holo structure against an apo one.** A bound substrate
-  costs ~0.45 Å of bottleneck radius, against a 0.077 Å spread between real
+  narrows the measured bottleneck by more than the spread between real
   reference structures. `lib/caver_utils.py` enforces this; do not work around
   it.
 - **CAVER output depends on the input filename.** Structures are staged as

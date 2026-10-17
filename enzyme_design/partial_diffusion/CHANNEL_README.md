@@ -17,14 +17,15 @@ broke, and why things are the way they are.
               00_caver_channel.py          measure the parent
                        │                   → FLEXIBLE_RESIDUES, baseline.json
                        ▼
-  ┌──────────  00_submit_all.py --pilot     1 backbone, RFD3 only, ~15 min
+  ┌──────────  run_local.py                1 backbone, RFD3 only, ~15 min
+  │            --stages prep-caver_filter
   │                    │
   │            08_probe_channel.py          WIDER? NARROWER? what to change
   │                    │
   └── adjust config ◄──┘  (loop until WIDER)
                        │
                        ▼
-              00_submit_all.py             full run:
+              run_local.py                 full run:
                        │                     RFD3 → 02b CAVER filter
                        │                     → MPNN (SHRINK_RESIDUES)
                        │                     → RF3 → score
@@ -82,10 +83,12 @@ It splits lining residues two ways, and the split matters:
 ## Step 1 — pilot (when changing config)
 
 ```bash
-python partial_diffusion/scripts/00_submit_all.py --pilot
+python partial_diffusion/scripts/run_local.py --stages prep-caver_filter
 ```
 
-One backbone, RFD3 only, minutes instead of hours. Pilots auto-name themselves
+One backbone, RFD3 only, minutes instead of hours. On an LSF cluster the
+equivalent is `00_submit_all.py --pilot`, which stops after the same gate.
+Pilots auto-name themselves
 `probe_001`, `probe_002`, … — reusing a name would make RFD3 skip and you would
 silently re-measure the *old* backbone.
 
@@ -103,12 +106,17 @@ Skip the pilot when only the residue list changed and the chain is known good.
 ## Step 2 — full run
 
 ```bash
-python partial_diffusion/scripts/00_submit_all.py
+python partial_diffusion/scripts/run_local.py
 ```
 
-Chains five jobs. Default scale is **10 backbones → ~200 designs**, deliberately
-small; scale up with `--n_batches 10` once a run looks healthy (same
-`EXPERIMENT` reuses existing backbones rather than wasting them).
+Runs the stages in order on one GPU. The default scale is deliberately small
+(10 backbones, 10 sequences each); scale up with `--n_batches 10` once a run
+looks healthy (the same `EXPERIMENT` reuses existing backbones rather than
+wasting them).
+
+On an LSF cluster, `00_submit_all.py` chains the same stages as five dependent
+jobs so the RF3 folds run as a parallel array. That is how our own campaign
+ran; it needs `--queue` and `--cpu-queue`.
 
 ```bash
 bstat                                     # monitor
@@ -129,8 +137,8 @@ python partial_diffusion/scripts/07_caver_rescore.py \
     --baseline examples/PabUPO-II_withHEMEFE_and_NNBT_baseline.json
 ```
 
-174 designs takes 1.5–3 h, so use `--limit 20` for a quick read or submit it as
-a batch job. Winners land in `best_designs/widened/`.
+A full batch takes a few hours, so use `--limit 20` for a quick read or submit
+it as a batch job. Winners land in `best_designs/widened/`.
 
 ```bash
 # did the core survive, or did RF3 drift?
@@ -164,49 +172,39 @@ python partial_diffusion/scripts/12_bottleneck_residues.py \
 
 ## Two measurement rules the code enforces
 
-Both were found by measuring the same structure twice and getting different
-answers. Do not "fix" either one.
-
-**1. Always measure apo.** RF3 folds enzyme + heme + substrate, so designs come
-out holo; the CAVER reference crystals are apo. A bound substrate costs ~0.45 Å
-of bottleneck radius — roughly **6× the spread between real UPO structures**.
-Every script here strips the substrate by default and refuses to compare a
-baseline measured one way against designs measured the other.
-
-> `channel_discovery/` does **not** strip. Any run there comparing designs to
-> those references carries this artifact.
-
-**2. Never let CAVER see the real filename.** CAVER 3.0 returns a different
-tunnel set for byte-identical input under a different name — 0.09 Å of spread
-across 8 filenames, again larger than the difference between real structures.
-`caver_utils.run_caver` stages everything as `structure.pdb`. Same bytes + same
-name is perfectly reproducible.
+Every script here **measures apo** (the substrate stripped) and **stages each
+structure under one filename** before CAVER sees it. Both rules exist because
+breaking either one produces an artifact larger than the effect being measured.
+Do not "fix" them. Why, and what was measured:
+[docs/validation.md](../../docs/validation.md).
 
 ---
 
 ## Reference numbers
 
-Measured apo, canonical staging:
+Measured apo under canonical staging, and reported on the
+[wiki](https://2026.igem.wiki/dtu-denmark/) rather than here — this repository
+is the software, so there is no second copy of a measurement to drift. Three
+public reference crystals, the PabUPO-II parent and MroUPO were each measured
+this way.
 
-| structure | bottleneck |
-|---|---|
-| 5FUJ (reference) | 0.975 Å |
-| **PabUPO-II parent** | **0.983 Å** |
-| 9HE9 (= PabUPO-II crystal) | 1.032 Å |
-| 5OXU (reference) | 1.050 Å |
-| MroUPO | 1.058 Å |
+Regenerate the parent's baseline, which is the file the pipeline reads, with:
+
+```bash
+python partial_diffusion/scripts/00_caver_channel.py <structure.pdb>
+```
 
 ### Run history
 
-| run | flexible | shrink | result |
+| run | flexible | shrink | what differed |
 |---|---|---|---|
-| `channel_01` | 22 | 15 | 10/10 backbones widened (mean +0.057). 174/200 passed gates. Of first 20 folded: **16/20 widened, median +0.042, best 1.094 Å (+0.111)** |
-| `channel_02` | 32 | 25 | in progress — only the residue set changed |
+| `channel_01` | CAVER-derived | sidechain-lining subset | the first full run of the loop |
+| `channel_02` | larger set | larger subset | only the residue set changed |
 
 **The ceiling is catalytic.** `12_bottleneck_residues.py` shows the parent's
-constriction is formed by PHE215 (2.66 Å) and GLU212 (2.81 Å), both catalytic.
-Cys52 is 2.35 Å from the heme iron — a real coordination bond, verified from
-coordinates, not annotation. Widening past a point means touching the chemistry.
+constriction is formed by two catalytic residues, and the proximal Cys sits at
+coordination distance from the heme iron — verified from coordinates, not
+annotation. Widening past a point means touching the chemistry.
 
 ---
 

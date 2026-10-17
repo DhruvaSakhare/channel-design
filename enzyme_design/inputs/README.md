@@ -18,7 +18,7 @@ yours.
 4. **Every ligand on a unique chain, separate from the protein**
 5. **Ligands written as `HETATM`, not `ATOM`** — a substrate written as `ATOM`
    is invisible to every ligand-aware step, and CAVER will find no tunnel at
-   all. See [KNOWN_ISSUES.md](../../KNOWN_ISSUES.md#2-a-substrate-written-as-atom-is-invisible).
+   all. See [KNOWN_ISSUES.md](../../KNOWN_ISSUES.md#3-a-substrate-written-as-atom-is-invisible).
 
 `../partial_diffusion/scripts/fix_pdb_chains.py` does the chain surgery if
 your file needs it.
