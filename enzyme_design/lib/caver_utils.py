@@ -35,24 +35,13 @@ from paths import (  # noqa: E402
     CAVER_CONFIG, CAVER_HOME, CAVER_JAR, CAVER_LIB, CHANNEL_ROOT,
 )
 
-HEME_NAMES = {"HEM", "HEME", "HEC", "HEA", "HEB", "HEG", "HDD", "HAS"}
-
-# Kept when stripping a structure down to "the channel itself". The heme is the
-# anchor CAVER measures from, and crystallographic metals/ions are part of the
-# fold — only the substrate is removed.
-WATER_NAMES = {"HOH", "WAT", "H2O", "DOD"}
-ION_NAMES = {"MG", "CL", "ZN", "CA", "NA", "K", "MN", "CU", "FE", "NI", "CO",
-             "SO4", "PO4", "GOL", "EDO", "ACT"}
-# NOTE: XE is deliberately absent. The channel placeholder is written as xenon
-# (see write_channel_placeholder), and it MUST be stripped before measuring —
-# otherwise CAVER sees the dummy atoms filling the tunnel and reports a
-# collapsed channel. Adding "XE" here would silently break every measurement of
-# an RFD3 output that used a placeholder.
-COFACTOR_NAMES = HEME_NAMES | ION_NAMES | WATER_NAMES
-
-# Every structure is staged under this one filename before CAVER sees it.
-# See the note in run_caver: CAVER's output depends on the input filename.
-CANONICAL_PDB_NAME = "structure.pdb"
+# The two measurement rules (strip the substrate, stage under one filename) live
+# in channel_discovery so both entry points share them. See staging.py.
+sys.path.insert(0, str(CHANNEL_ROOT / "python_scripts"))
+from staging import (  # noqa: E402,F401
+    CANONICAL_PDB_NAME, COFACTOR_NAMES, HEME_NAMES, ION_NAMES, WATER_NAMES,
+    clear_stray_pdbs, strip_resnames_from_pdb, substrate_resnames,
+)
 
 
 # ── input preparation ────────────────────────────────────────────────────────
@@ -82,42 +71,6 @@ def find_heme_fe(pdb_path):
     if fe is None or chain is None:
         return None, None, None
     return fe, chain, max_res
-
-
-def substrate_resnames(pdb_path):
-    """HETATM residue names that are neither cofactor, ion, nor water.
-
-    In practice this is the docked substrate. Used to measure the channel
-    APO — i.e. how wide the opening is, rather than how much gap is left
-    beside a ligand sitting in it.
-    """
-    found = set()
-    with open(pdb_path) as f:
-        for line in f:
-            if line.startswith("HETATM"):
-                rn = line[17:20].strip()
-                if rn and rn not in COFACTOR_NAMES:
-                    found.add(rn)
-    return found
-
-
-def strip_resnames_from_pdb(pdb_path, out_path, resnames):
-    """Copy a PDB with the given residue names dropped. Returns atoms removed.
-
-    Both the parent and every design MUST be stripped the same way, or the
-    comparison measures ligand occupancy instead of channel shape.
-    """
-    resnames = {r.upper() for r in resnames}
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    removed = 0
-    with open(out_path, "w") as out:
-        for line in open(pdb_path):
-            if line[:6] in ("ATOM  ", "HETATM") and line[17:20].strip().upper() in resnames:
-                removed += 1
-                continue
-            out.write(line)
-    return removed
 
 
 def write_pdb_with_fe_atom(pdb_path, out_path, fe, chain, max_res):
@@ -179,7 +132,8 @@ def make_config(out_path, res_num, chain, probe_radius=None):
 
 # ── running ──────────────────────────────────────────────────────────────────
 
-def run_caver(pdb_path, work_dir, probe_radius=None, quiet=True, strip=None):
+def run_caver(pdb_path, work_dir, probe_radius=None, quiet=True, strip=None,
+              substrate=None):
     """Run CAVER on one structure. Returns the output dir, or None on failure.
 
     work_dir gets  pdb/  (the Fe-augmented input CAVER reads),  config.txt,
@@ -189,6 +143,11 @@ def run_caver(pdb_path, work_dir, probe_radius=None, quiet=True, strip=None):
     substrate is present (see substrate_resnames) and measure the channel APO.
     A bound ligand narrows the tunnel by far more than the differences between
     structures, so this must be consistent across everything being compared.
+
+    substrate — the configured substrate residue name, used with strip="auto".
+    Naming it is more reliable than letting substrate_resnames identify it by
+    elimination, which cannot tell a docked ligand from an unfamiliar
+    crystallographic one.
     """
     pdb_path = Path(pdb_path)
     work_dir = Path(work_dir)
@@ -196,7 +155,8 @@ def run_caver(pdb_path, work_dir, probe_radius=None, quiet=True, strip=None):
     out_dir  = work_dir / "out"
 
     if strip:
-        names = substrate_resnames(pdb_path) if strip == "auto" else set(strip)
+        names = (substrate_resnames(pdb_path, substrate=substrate)
+                 if strip == "auto" else set(strip))
         if names:
             stripped = work_dir / "stripped" / pdb_path.name
             n = strip_resnames_from_pdb(pdb_path, stripped, names)
@@ -223,11 +183,7 @@ def run_caver(pdb_path, work_dir, probe_radius=None, quiet=True, strip=None):
     config = make_config(work_dir / "config.txt", res_num, fe_chain, probe_radius)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # CAVER reads EVERY pdb in -pdb; a leftover from a previous run in this
-    # work dir would be silently treated as another trajectory frame.
-    for stray in pdb_in.glob("*.pdb"):
-        if stray.name != CANONICAL_PDB_NAME:
-            stray.unlink()
+    clear_stray_pdbs(pdb_in)
 
     proc = subprocess.run(
         ["java", "-Xmx1200m", "-cp", str(CAVER_LIB), "-jar", str(CAVER_JAR),

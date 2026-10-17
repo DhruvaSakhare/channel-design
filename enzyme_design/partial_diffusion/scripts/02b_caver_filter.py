@@ -141,7 +141,9 @@ def main():
             continue
 
         t = cu.best_tunnel(
-            cu.run_caver(pdb, work / stem, strip=None if base_mode == "holo" else "auto"),
+            cu.run_caver(pdb, work / stem,
+                         strip=None if base_mode == "holo" else "auto",
+                         substrate=getattr(C, "SUBSTRATE_NAME", None)),
             max_length=args.max_length, max_curvature=args.max_curvature)
         if t is None:
             fe, _, _ = cu.find_heme_fe(pdb)

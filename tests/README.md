@@ -18,6 +18,7 @@ pytest -q
 | `test_affinity_contract.py` | The CSV contract joining Boltz-2 to the channel clustering — the one interface between two components written separately. |
 | `test_boltz_resume.py` | Resuming a batch does not duplicate rows (see the regression it is named for). |
 | `test_configs.py` | Every shipped config imports, finds its structure, and writes only under `$PIPELINE_WORK_ROOT`. |
+| `test_channel_staging.py` | Both CAVER entry points measure apo and stage under one filename, through one shared module — the two bugs in `docs/validation.md`. CAVER is stubbed out. |
 | `test_paths.py` | `enzyme_design/` can still find `channel_discovery/` now that they are separate components. |
 
 `fixtures/` holds a six-row Boltz summary and a matching cluster assignment

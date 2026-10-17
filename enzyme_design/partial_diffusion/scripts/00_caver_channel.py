@@ -60,10 +60,15 @@ def parse_args():
                    help="Only residues lining the channel with a sidechain")
     p.add_argument("--probe-radius", type=float, default=None,
                    help="CAVER probe radius override (config default: 0.4)")
+    p.add_argument("--substrate", default=None,
+                   help="Substrate residue name to strip, e.g. UNL. Naming it is more "
+                        "reliable than the default, which identifies the substrate by "
+                        "elimination and so cannot tell a docked ligand from an "
+                        "unfamiliar crystallographic one.")
     p.add_argument("--keep-substrate", action="store_true",
                    help="Measure the channel WITH the docked substrate in place. Default is "
-                        "to strip it: a bound ligand narrows the tunnel by ~0.45 A, several "
-                        "times the difference between real structures, so measuring holo "
+                        "to strip it: a bound ligand narrows the tunnel by several times the "
+                        "difference between real structures, so measuring holo "
                         "reports how much gap is left beside the ligand rather than how wide "
                         "the opening is. 07_caver_rescore.py defaults the same way, so parent "
                         "and designs stay comparable.")
@@ -106,12 +111,12 @@ def main():
 
     strip = None if args.keep_substrate else "auto"
     if strip:
-        subs = cu.substrate_resnames(pdb)
+        subs = cu.substrate_resnames(pdb, substrate=args.substrate)
         if subs:
             print(f"Substrate : {', '.join(sorted(subs))} — stripped (measuring apo)")
 
     caver_out = cu.run_caver(pdb, work, probe_radius=args.probe_radius,
-                             quiet=False, strip=strip)
+                             quiet=False, strip=strip, substrate=args.substrate)
     if caver_out is None:
         sys.exit("CAVER did not produce usable output — see the log above.")
 

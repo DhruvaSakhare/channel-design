@@ -10,10 +10,10 @@ plot each cluster's members together.
 Why a separate script instead of pointing cluster_tunnels.py at best_designs/:
 that script consumes run_batch.py's output, and run_batch.py (a) never strips
 the docked substrate, so RF3 designs are measured holo while the reference
-crystals are apo — a ~0.45 A systematic offset, several times the real spread
-between structures, and (b) stages every structure under its own filename,
-which CAVER's tunnel search is measurably sensitive to (~0.09 A of spread on
-byte-identical input). This reads the CAVER runs 07_caver_rescore.py already
+crystals are apo — a systematic offset several times the real spread between
+structures, and (b) stages every structure under its own filename, which
+CAVER's tunnel search is measurably sensitive to. This reads the CAVER runs
+07_caver_rescore.py already
 did, which are apo and canonically staged, so the comparison is clean and no
 CAVER re-run is needed.
 

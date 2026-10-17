@@ -3,12 +3,19 @@ import csv
 import math
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
 from extract_tunnel_R import get_tunnel_axis_values, plot_distribution, plot_tunnel_shape
+# The two measurement rules (measure apo, stage under one filename) are shared
+# with the design pipeline. See staging.py and docs/validation.md.
+from staging import (
+    CANONICAL_PDB_NAME, clear_stray_pdbs, strip_resnames_from_pdb, substrate_resnames,
+    unconventional_substrates,
+)
 
 ROOT = Path(__file__).parent.parent
 
@@ -21,6 +28,10 @@ CAVER_JAR  = Path(os.environ.get('CAVER_JAR') or CAVER_HOME / 'caver.jar')
 CAVER_LIB  = Path(os.environ.get('CAVER_LIB') or CAVER_HOME / 'lib')
 
 HEME_NAMES = {'HEM', 'HEME', 'HEC', 'HEA', 'HEB', 'HEG', 'HDD', 'HAS', 'LIG'}
+# Names find_heme() accepts as heme but that staging.py does not know are
+# cofactors. Without this, 'LIG' (the heme in some structures) would be
+# stripped along with the substrate.
+EXTRA_HEME_NAMES = HEME_NAMES - {'HEM', 'HEME', 'HEC', 'HEA', 'HEB', 'HEG', 'HDD', 'HAS'}
 
 
 # ── HEME / starting-point detection ──────────────────────────────────────────
@@ -210,14 +221,18 @@ def make_config(template_path, out_path, res_num, chain, probe_radius=None):
 # ── CAVER execution ───────────────────────────────────────────────────────────
 
 def run_caver(pdb_file, pdb_input_dir, config, out_dir):
-    """Run CAVER. pdb_input_dir must contain exactly one PDB file (real file or symlink)."""
+    """Run CAVER on pdb_file, staged as pdb_input_dir/structure.pdb.
+
+    The staged name is fixed, never the structure's own: CAVER 3.0 returns a
+    different tunnel set for byte-identical input under a different filename.
+    """
     pdb_input_dir.mkdir(parents=True, exist_ok=True)
-    target = pdb_input_dir / pdb_file.name
-    # Only symlink if not already a real file (modified PDB written there directly)
-    if not (target.exists() and not target.is_symlink()):
+    target = pdb_input_dir / CANONICAL_PDB_NAME
+    if not (target.exists() and pdb_file.resolve() == target.resolve()):
         if target.exists() or target.is_symlink():
             target.unlink()
-        target.symlink_to(pdb_file.resolve())
+        shutil.copyfile(pdb_file, target)
+    clear_stray_pdbs(pdb_input_dir)
 
     cmd = [
         'java', '-Xmx1200m',
@@ -373,6 +388,16 @@ def main():
                         help='Override probe radius in config (default: use config.txt value)')
     parser.add_argument('--ylim',          type=float, default=5,
                         help='Y-axis half-range for tunnel shape plots (default: 5)')
+    parser.add_argument('--substrate', default=None,
+                        help='Substrate residue name to strip before measuring, e.g. UNL. '
+                             'Naming it is more reliable than the default, which identifies '
+                             'the substrate by elimination and so cannot tell a docked ligand '
+                             'from an unfamiliar crystallographic one.')
+    parser.add_argument('--keep-substrate', action='store_true',
+                        help='Do not strip a bound substrate before measuring. Default is to '
+                             'measure the channel APO (heme, metals and ions are kept); a bound '
+                             'substrate narrows the bottleneck by far more than the differences '
+                             'between structures. Never mix apo and --keep-substrate numbers.')
     parser.add_argument('--no-plots',      action='store_true',
                         help='Skip plot generation after CAVER runs')
     parser.add_argument('--no-caver',      action='store_true',
@@ -427,24 +452,52 @@ def main():
         if not args.no_caver:
             if args.skip_existing and (caver_out / 'summary.txt').exists():
                 print('  Skipping CAVER — output already exists (--skip-existing)')
+                if not (pdb_input_dir / CANONICAL_PDB_NAME).exists():
+                    sys.exit(
+                        f'ERROR: {caver_out} predates apo/constant-filename staging, so its\n'
+                        f'numbers are not comparable with anything measured now (see\n'
+                        f'docs/validation.md). --skip-existing would have silently mixed the\n'
+                        f'two in one results table.\n'
+                        f'  Remeasure:  rm -rf {caver_out.parent} && rerun\n'
+                        f'  Or drop --skip-existing to overwrite it.')
                 caver_skipped = True
             else:
-                result = find_heme(pdb)
+                # Measure APO: drop a bound substrate, keep heme/metals/ions.
+                measured = pdb
+                if not args.keep_substrate:
+                    names = substrate_resnames(pdb, keep=EXTRA_HEME_NAMES,
+                                               substrate=args.substrate)
+                    if names:
+                        measured = pdb_dir / 'stripped' / pdb.name
+                        n = strip_resnames_from_pdb(pdb, measured, names)
+                        print(f'  Stripped {n} atom(s) of {", ".join(sorted(names))} '
+                              f'— measuring channel apo')
+                        odd = (unconventional_substrates(names)
+                               if args.substrate is None else [])
+                        if odd:
+                            print(f'  WARNING: {", ".join(odd)} is a named component, not a '
+                                  f'docking placeholder.\n'
+                                  f'           If it belongs to the structure rather than being '
+                                  f'the substrate,\n'
+                                  f'           removing it invents channel width — pass '
+                                  f'--substrate to be explicit.')
+
+                result = find_heme(measured)
                 if result[0] is None:
                     print(f'  WARNING: no HEME Fe found in {pdb.name}, falling back to template config')
                     config = args.config
-                    ok = run_caver(pdb, pdb_input_dir, config, caver_out)
+                    ok = run_caver(measured, pdb_input_dir, config, caver_out)
                 else:
                     fe_coords, protein_chain, max_res = result
                     print(f'  Fe at ({fe_coords[0]:.2f}, {fe_coords[1]:.2f}, {fe_coords[2]:.2f})')
                     pdb_input_dir.mkdir(parents=True, exist_ok=True)
-                    modified_pdb = pdb_input_dir / pdb.name
+                    staged_pdb = pdb_input_dir / CANONICAL_PDB_NAME
                     fe_res_num, fe_chain = write_pdb_with_fe_atom(
-                        pdb, modified_pdb, fe_coords, protein_chain, max_res)
+                        measured, staged_pdb, fe_coords, protein_chain, max_res)
                     print(f'  Starting point: synthetic Fe residue {fe_res_num} {fe_chain}')
                     make_config(args.config, config, fe_res_num, fe_chain,
                                 probe_radius=args.probe_radius)
-                    ok = run_caver(modified_pdb, pdb_input_dir, config, caver_out)
+                    ok = run_caver(staged_pdb, pdb_input_dir, config, caver_out)
 
                 if not ok:
                     print('  Skipping plots due to CAVER error')

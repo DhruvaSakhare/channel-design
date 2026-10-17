@@ -68,14 +68,18 @@ def parse_args():
     p.add_argument("--keep-substrate", action="store_true",
                    help="Measure channels WITH the bound substrate. Default strips it. "
                         "RF3 folds enzyme+heme+substrate, so designs arrive holo while "
-                        "crystal references are apo; a bound ligand costs ~0.45 A of "
-                        "bottleneck radius, roughly 6x the spread between real structures. "
+                        "crystal references are apo; a bound ligand costs several times "
+                        "the spread between real structures. "
                         "Stripping keeps parent, designs and references comparable.")
     p.add_argument("--min-gain", type=float, default=0.0,
                    help="A design counts as widened when its bottleneck radius exceeds "
                         "the parent's by more than this (A, default: 0.0 — any gain)")
     p.add_argument("--limit", type=int, default=None,
                    help="Only process the first N designs (quick check)")
+    p.add_argument("--substrate", default=None,
+                   help="Substrate residue name to strip, e.g. UNL. Defaults to the run "
+                        "config's SUBSTRATE_NAME. Naming it is more reliable than "
+                        "identifying the substrate by elimination.")
     return p.parse_args()
 
 
@@ -105,7 +109,8 @@ def to_pdb(struct, dest_dir):
 def measure(pdb_path, work_dir, args):
     """CAVER one structure; return its best tunnel dict, or None."""
     out = cu.run_caver(pdb_path, work_dir, probe_radius=args.probe_radius,
-                       strip=None if args.keep_substrate else "auto")
+                       strip=None if args.keep_substrate else "auto",
+                       substrate=getattr(args, "substrate", None))
     if out is None:
         return None
     return cu.best_tunnel(out, max_length=args.max_length,
@@ -122,6 +127,8 @@ def main():
                  "or point $CAVER_HOME at a copy you already have.")
 
     C = load_config()
+    if args.substrate is None and C is not None:
+        args.substrate = getattr(C, "SUBSTRATE_NAME", None)
 
     # ── where things live ────────────────────────────────────────────────────
     if args.designs:
