@@ -36,6 +36,8 @@ def _import_in_subprocess(module, work_root):
         f"m = importlib.import_module({module!r})\n"
         "print(m.WORK)\n"
         "print(m.INPUT_PDB)\n"
+        "print(sorted(set(getattr(m, '_CATALYTIC_PINS', {})) "
+        "             & set(getattr(m, 'FLEXIBLE_RESIDUES', []))))\n"
     )
     env = dict(os.environ,
                PIPELINE_WORK_ROOT=str(work_root),
@@ -54,12 +56,20 @@ def test_config_imports_and_stays_inside_the_work_root(module, tmp_path):
     result = _import_in_subprocess(module, tmp_path)
     assert result.returncode == 0, f"{module} failed to import:\n{result.stderr}"
 
-    work, input_pdb = result.stdout.strip().splitlines()[:2]
+    work, input_pdb, pinned_and_flexible = result.stdout.strip().splitlines()[:3]
 
     assert Path(work).is_relative_to(tmp_path), (
         f"{module} resolved WORK to {work}, outside $PIPELINE_WORK_ROOT")
     assert Path(input_pdb).exists(), (
         f"{module} points at a missing structure: {input_pdb}")
+
+    # A residue in both lists gets NO pin: _build_fixed_atoms skips flexible
+    # residues, so the catalytic annotation beside it becomes dead code that
+    # reads like protection. 01_rfd3_partial_submit.py refuses to run such a
+    # config; this keeps one from being shipped in the first place.
+    assert pinned_and_flexible == "[]", (
+        f"{module} lists {pinned_and_flexible} in both _CATALYTIC_PINS and "
+        f"FLEXIBLE_RESIDUES, so the pin is silently ignored. See KNOWN_ISSUES.md.")
 
 
 def test_site_defaults_are_inside_the_repository():

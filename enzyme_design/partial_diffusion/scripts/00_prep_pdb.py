@@ -49,6 +49,27 @@ def chain_resi(atom):
     return f"{atom['chain']}{atom['resi']}"
 
 
+# The 20 standard residues, plus the modified ones that legitimately appear in
+# ATOM records. Anything else on an ATOM line is a ligand in disguise.
+_STANDARD_AA = {
+    "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE",
+    "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL",
+    "MSE", "SEC", "PYL", "ASX", "GLX", "UNK",
+}
+
+
+def ligands_written_as_atom(atoms):
+    """Residue names on ATOM lines that are not amino acids.
+
+    Every ligand-aware step keys on HETATM, so a substrate written as ATOM is
+    silently treated as protein: CAVER finds no tunnel through it, and RFD3 and
+    MPNN see it as backbone to redesign. The two records differ by one word and
+    nothing downstream complains. See KNOWN_ISSUES.md.
+    """
+    return sorted({a["resn"] for a in atoms
+                   if a["record"] == "ATOM" and a["resn"].upper() not in _STANDARD_AA})
+
+
 def mode_check(atoms):
     protein = [a for a in atoms if a["record"] == "ATOM"]
     hetatms = [a for a in atoms if a["record"] == "HETATM"]
@@ -59,6 +80,18 @@ def mode_check(atoms):
     print(f"\nPDB: {C.INPUT_PDB}")
     print(f"  Protein residues : {len(residues)}  ({residues[0]}–{residues[-1]})")
     print(f"  HETATM residues  : {', '.join(f'{r} ({c})' for r, c in het_residues) or 'none'}")
+
+    disguised = ligands_written_as_atom(atoms)
+    if disguised:
+        n = sum(1 for a in atoms
+                if a["record"] == "ATOM" and a["resn"] in disguised)
+        print(f"\n  ⚠ LIGAND WRITTEN AS `ATOM`: {', '.join(disguised)} "
+              f"({n} atom(s))")
+        print(f"    Every ligand-aware step keys on HETATM, so this is being "
+              f"treated as protein.")
+        print(f"    CAVER will find no tunnel through it. Repair with:")
+        print(f"      python partial_diffusion/scripts/fix_pdb_chains.py "
+              f"{C.INPUT_PDB}")
 
     print(f"\nPartial diffusion will:")
     print(f"  HOLD FIXED (CATRES — sequence identity kept, not redesigned) :")

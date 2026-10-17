@@ -24,6 +24,30 @@ C = importlib.import_module(importlib.import_module("partial_diffusion").default
 
 C.make_workdirs()
 
+# ── guard: a pinned residue that is also flexible gets NO pin ────────────────
+# _build_fixed_atoms applies _CATALYTIC_PINS only to residues *not* in
+# FLEXIBLE_RESIDUES ("... for r in _chain_resids(...) if r not in flex"), so a
+# residue in both lists ends up with full backbone freedom in RFD3 — the exact
+# opposite of what the annotation beside it says. The pin is dead code, and it
+# looks like the opposite. This is the RFD3 stage, which is where that pin would
+# have been honoured, so refuse here rather than discover it in the output.
+#
+# 03_mpnn_submit.py makes the same check against SHRINK_RESIDUES. Keep both:
+# this one fires even on a config that sets no SHRINK_RESIDUES at all.
+_pinned = set(getattr(C, "_CATALYTIC_PINS", {}))
+_flex = set(getattr(C, "FLEXIBLE_RESIDUES", []))
+_both = sorted(_pinned & _flex)
+if _both:
+    sys.exit(
+        f"Residue(s) {_both} are in BOTH _CATALYTIC_PINS and FLEXIBLE_RESIDUES.\n"
+        f"A flexible residue is skipped by _build_fixed_atoms, so the catalytic\n"
+        f"pin on {_both} is silently ignored: RFD3 gets full backbone freedom\n"
+        f"there, not the protected sidechain geometry the pin implies.\n"
+        f"Decide which you meant:\n"
+        f"  - keep the geometry  -> remove them from FLEXIBLE_RESIDUES\n"
+        f"  - redesign them      -> remove them from _CATALYTIC_PINS\n"
+        f"See KNOWN_ISSUES.md.")
+
 # ── channel placeholder ──────────────────────────────────────────────────────
 # If configured, merge the CAVER-derived tunnel placeholder into a copy of the
 # input structure and hand it to RFD3 as extra fixed ligand context, so the

@@ -5,7 +5,7 @@
 Chains all stages using LSF job dependencies. RF3 runs as a parallel array
 job so 1000 designs fold simultaneously rather than sequentially.
 
-Run from enzyme_design_hpc/:
+Run from enzyme_design/:
   python partial_diffusion/scripts/00_submit_all.py
 
 To run a different config without needing write access to config.py (e.g.
@@ -178,7 +178,7 @@ def write_script(name, wall, body, dep_id=None, gpu=True, cores=4, mem="10GB", s
     # GPU stages go to the GPU queue; CPU-only stages go to CPU_QUEUE and request
     # NO GPU (reserving a GPU for a non-GPU job is against HPC policy).
     queue = C.QUEUE if gpu else C.CPU_QUEUE
-    # Use ended() not done(): on the DTU GPU queue a job that grabs a GPU and
+    # Use ended() not done(): on some GPU queues a job that grabs a GPU and
     # exits quickly doesn't release — it hangs until wall-time and is killed by
     # TERM_RUNLIMIT, which is NOT a clean exit, so done() would never fire.
     # ended() fires on any termination (clean or killed), and the per-stage skip
@@ -319,8 +319,6 @@ def main():
         print("  Permanently:  put both in envs/site.env  (setup.sh reads it)\n")
         print("The CPU queue is for prep, the CAVER gate and scoring. Sending")
         print("those to a GPU queue reserves a GPU to do no GPU work.\n")
-        print("On DTU HPC: --queue gpuv100 --cpu-queue hpc  (or gpua100, which")
-        print("is usually the more contended of the two).\n")
         sys.exit(2)
 
     ensure_msa(args)
@@ -434,7 +432,7 @@ def main():
     print()
 
     # We decide here, on the login node, which stages are already complete and
-    # skip *submitting* them entirely. This matters because on the DTU GPU
+    # skip *submitting* them entirely. This matters because on some GPU
     # queue a job that grabs a GPU in exclusive_process mode and then exits
     # within seconds hangs in RUN during the node's GPU-release epilog — so a
     # GPU "skip job" that just exits 0 would still stall the whole chain.
@@ -561,7 +559,7 @@ done < {C.CMDS_DIR}/mpnn.cmds
     # Stage 3a — generate RF3 inputs (CPU only, fast)
     # Runs 04_rf3_submit.py which writes the RF3 JSONs and rf3.sh array job.
     # Skip at the login node if the inputs are already built — otherwise this
-    # trivial job would grab a GPU on gpua100 and hang until wall-time.
+    # trivial job would grab a GPU and hang until wall-time.
     # ------------------------------------------------------------------
     rf3_inputs_ready = (
         (C.SUBMIT_DIR / "rf3.sh").exists()
@@ -665,7 +663,10 @@ echo "RF3 array and scoring submitted."
     print(f"  [4] RF3 array+scoring {"would submit" if DRY_RUN else "submitted "}  job {launcher_id}")
 
     print(f"\n{'='*60}")
-    print(f"  All jobs queued.  Monitor: bstat")
+    if DRY_RUN:
+        print("  Dry run: nothing was submitted.")
+    else:
+        print("  All jobs queued.  Monitor: bstat")
     print(f"  Logs      : {C.LOGS_DIR}/")
     print(f"  Outputs   : {C.WORK}/")
     print(f"  Best CIFs : {C.BEST_DIR}/")
