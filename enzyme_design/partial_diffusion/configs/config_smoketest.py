@@ -124,8 +124,8 @@ RF3_SUBSTRATE_CHAIN = "C_1"
 # imported by anything, and the config literal won silently. A run would
 # print the queue it was being overridden to and submit to the other one.
 #
-#   PIPELINE_QUEUE=gpuv100 python partial_diffusion/scripts/00_submit_all.py
-#   python partial_diffusion/scripts/00_submit_all.py --queue gpuv100
+#   PIPELINE_QUEUE=<gpu-queue> python partial_diffusion/scripts/00_submit_all.py
+#   python partial_diffusion/scripts/00_submit_all.py --queue <gpu-queue>
 #
 # Install paths, checkpoints and queue names live in site.py, not here --
 # an experiment is portable, a filesystem is not. Override from the

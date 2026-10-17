@@ -6,91 +6,50 @@ a substrate into it, then (2) maps the substrate-access tunnels leading to that
 pocket and compares their shape across structures.
 
 The two stages live in their own folders and run **in order** — the tunnel stage
-consumes the pocket stage's output. A third folder wraps both for the cluster:
+consumes the pocket stage's output:
 
 ```
 channel_discovery/
 ├── fpocket_pipeline/   # STAGE A — pocket detection + docking
 ├── caver_pipeline/     # STAGE B — tunnel detection + clustering (needs Stage A output)
-└── hpc/                # LSF job scripts that run A→B end to end on DTU HPC
+└── tools/              # preflight_inputs.py, check_cif_parse.py — screen inputs first
 ```
 
-**On DTU HPC, `hpc/` is the way you run this.** It handles sharding, the
-combined-table races between stages, CIF conversion, and the fpocket/CAVER
-plumbing for you. The per-stage commands below are what it runs underneath, and
-are what you use for a laptop run or to re-run one piece by hand.
-
-Each folder has its own detailed README:
-[`hpc/README.md`](hpc/README.md),
-[`fpocket_pipeline/README.md`](fpocket_pipeline/README.md), and
+Each stage has its own detailed README:
+[`fpocket_pipeline/README.md`](fpocket_pipeline/README.md) and
 [`caver_pipeline/README.md`](caver_pipeline/README.md). This document is the
-top-level map: what to run, in what order, and why.
+top-level map: what to run, in what order, and why. Nothing here needs a
+scheduler; every command runs on a laptop or a single machine.
 
 ---
 
-## Running on your own folder of structures (DTU HPC)
-
-**The one command**, once setup is done — point it at your folder and confirm:
+## Running on your own folder of structures
 
 ```bash
-cd <your clone>/channel_discovery/hpc && ./submit_all.sh -i /path/to/my_structures
+# Steps 1-2 run from the repository root.
+# 1. Environment, once (see Requirements below).
+./scripts/setup_docking_env.sh && conda activate channel_discovery
+./scripts/fetch_third_party.sh                       # CAVER 3.0
+
+# 2. Screen your inputs. A structure with no heme iron fails silently later.
+python3 channel_discovery/tools/preflight_inputs.py /path/to/my_structures \
+    --report preflight.tsv
+
+# 3. Stage A, then Stage B -- the commands are under "Running the stages by hand".
 ```
 
-That runs preflight, submits all four chained jobs, and leaves results in
-`$WORK`. Add `-n 10` to test on ten structures first, `-y` to skip the
-confirmation prompt. Everything below is the same thing, explained.
+Your structures can be `.pdb` or `.cif`. Stage A converts what it needs;
+Stage B reads `.pdb` only, so convert CIFs first with
+`caver_pipeline/python_scripts/cif_to_pdb.py`.
 
-Your structures can be `.pdb` or `.cif`; CIF inputs are converted for CAVER
-automatically.
-
-```bash
-# 0. Go to the code. $PROJECT is defined inside config.sh, not in your shell,
-#    so use the literal path here.
-cd <your clone>/channel_discovery/hpc
-
-# 1. Make the scripts executable. Copying/rsyncing the repo can strip the
-#    execute bit, and then every ./script below fails with "Permission denied".
-chmod +x *.sh
-
-# 2. Point the pipeline at your structures.
-#    Either edit INPUTS in config.sh, or pass -i on every submit.
-vim config.sh
-
-# 3. Smoke-test on the 3 bundled structures first (interactive, ~minutes).
-bsub -Is -q hpc -W 1:00 -n 4 -R "rusage[mem=4GB]" -R "span[hosts=1]" bash
-cd <your clone>/channel_discovery/hpc   # the -Is shell may start elsewhere
-./05_smoketest.sh
-exit                     # back to the login node
-
-# 4. Test-submit a handful, then the full set.
-./submit_all.sh -i /path/to/my_structures -n 10     # 10 structures + references
-./submit_all.sh -i /path/to/my_structures           # everything
-
-bjobs -A                 # monitor;  logs land in hpc/logs/
-```
-
-Steps 0–2 are once. After that a new screen is just step 4.
-
-A `--limit`/`-n` run is isolated in `<work>/testN/`, so it can never overwrite a
-full run. Reference structures are added *on top of* the limit, not counted
-against it.
-
-Key outputs, all under `$WORK`:
+Key outputs, all relative to `channel_discovery/`:
 
 | File | What it is |
 |---|---|
-| `outputs/pocket_selection.tsv` | per-structure PASS/FAIL + selected pocket + docking outcome |
-| `results/tunnel_selection.csv` | per-structure tunnel metrics |
-| `results/clustering/cluster_assignments.csv` | tunnel-shape cluster per structure |
-| `preflight_report.tsv` | why any input was dropped before submission |
-
-The environment is the shared team conda env **`bio_docking`** — it already
-exists and is already set up. **Do not run `00_setup_env.sh` against it**; see
-[`hpc/README.md`](hpc/README.md) for why and for how to build a private env
-instead.
-
-See [`hpc/README.md`](hpc/README.md) for the job chain, tuning (concurrency,
-walltime, CAVER memory), and rerun behaviour.
+| `fpocket_pipeline/outputs/pocket_selection.tsv` | per-structure PASS/FAIL + selected pocket + docking outcome |
+| `caver_pipeline/results/tunnel_selection.csv` | per-structure tunnel metrics |
+| `caver_pipeline/results/clustering/cluster_assignments.csv` | tunnel-shape cluster per structure |
+| `preflight.tsv` (from step 2) | why any input was dropped |
 
 ---
 
@@ -112,12 +71,11 @@ directory* as the TSV — Stage B reads
 **Everything is anchored on the heme iron.** A structure with no heme Fe is
 recorded `FAIL ("no heme")` and then skipped by the entire tunnel stage. Bare
 predicted structures (AlphaFold, ESMFold, RFdiffusion/ProteinMPNN output)
-usually have no cofactor, so a whole batch can fail without erroring. On HPC,
-`submit_all.sh` runs `preflight_inputs.py` first to catch this in seconds;
-locally you can run it yourself:
+usually have no cofactor, so a whole batch can fail without erroring.
+`tools/preflight_inputs.py` catches this in seconds, before any compute is spent:
 
 ```bash
-python3 hpc/preflight_inputs.py /path/to/my_structures --report preflight.tsv
+python3 tools/preflight_inputs.py /path/to/my_structures --report preflight.tsv
 ```
 
 ---
@@ -132,10 +90,13 @@ python3 hpc/preflight_inputs.py /path/to/my_structures --report preflight.tsv
 | Java ≥ 1.8 | Stage B | runs CAVER. Built against Java 8; tested on 8 and 17 |
 | CAVER 3.0 | Stage B | GPLv3, **not** redistributed here — `scripts/fetch_third_party.sh`, or set `$CAVER_HOME` |
 
-On a cluster where the `bio_docking` env already exists, the job scripts
-activate it for you — nothing to install.
+Create the environment once:
 
-For a local run, create your own env:
+```bash
+./scripts/setup_docking_env.sh        # builds a conda env named channel_discovery
+```
+
+or by hand:
 
 ```bash
 conda create -n channel_discovery -c conda-forge -c bioconda \
@@ -144,7 +105,7 @@ conda activate channel_discovery
 ```
 
 Add the docking stack only if you need Stage A steps 3–4 — see
-[`hpc/00_setup_env.sh`](hpc/00_setup_env.sh) for the exact working recipe
+[`scripts/setup_docking_env.sh`](../scripts/setup_docking_env.sh) for the exact working recipe
 (`swig`/`boost-cpp`, `numpy<2.0` first, `BOOST_INCLUDE`/`BOOST_LIB` exported
 before `pip install vina==1.2.7`, `meeko==0.7.1` pinned).
 
@@ -226,8 +187,8 @@ python3 pipeline.py /path/to/structures -l ligands/NNBT.sdf --prepare \
 
 `pipeline.py` re-enumerates **every** structure in `--outputs-dir` and rewrites
 `pocket_selection.tsv` from that view. Two concurrent runs sharing one outputs
-dir will clobber each other's table — this is exactly why the HPC Stage A gives
-every task its own shard dir and merges afterwards.
+dir will clobber each other's table. If you split a large set across parallel
+runs, give each its own `--outputs-dir` and merge the tables afterwards.
 
 Re-runs are cheap: existing `.pdbqt` files and existing docking outputs are
 detected and skipped.
@@ -255,8 +216,7 @@ python3 python_scripts/run_batch.py --fpocket-dir ../fpocket_pipeline/outputs
 ```
 
 `run_batch.py` globs `*.pdb` from `input_files/` only — it does **not** read
-CIF. Convert first with `python_scripts/cif_to_pdb.py` (the HPC path does this
-for you in `20_collectA.sh`). Add `--skip-existing` to make re-runs incremental,
+CIF. Convert first with `python_scripts/cif_to_pdb.py`. Add `--skip-existing` to make re-runs incremental,
 so adding new structures only costs CAVER time for the new ones.
 
 `--fpocket-dir` is optional: without it, every structure in `input_files/` is
@@ -290,8 +250,7 @@ python3 python_scripts/cluster_affinity_violin.py --summary-csv <boltz_summary.c
 python3 python_scripts/cluster_clade_heatmap.py
 ```
 
-Boltz-2 is a separate GPU submission in a different env — see the end of
-[`hpc/README.md`](hpc/README.md).
+Boltz-2 is a separate GPU step in a different env — see [`../boltz/`](../boltz/).
 
 See [`caver_pipeline/README.md`](caver_pipeline/README.md) for the CAVER
 parameters, the tunnel filters, clustering options, and region-restricted
@@ -301,10 +260,6 @@ clustering.
 
 ## Configuration
 
-- **HPC run settings** (paths, conda env, concurrency, cluster count, Vina
-  exhaustiveness) live in [`hpc/config.sh`](hpc/config.sh). Every value uses
-  `${VAR:-default}`, so anything can be overridden from the environment or with
-  a `submit_all.sh` flag.
 - **Stage A filter thresholds** (druggability, volume, Fe-proximity, …) are
   `pipeline.py` flags — see the fpocket README.
 - **Stage B CAVER parameters** (probe radius, clustering threshold, …) live in
@@ -319,9 +274,9 @@ clustering.
 serve two purposes:
 
 - as **test data**, they exercise both stages end to end;
-- as **references**, `submit_all.sh` appends them to every run (`REFERENCES` in
-  `config.sh`). They calibrate the pocket thresholds — which were tuned on
+- as **references**, copy them into your input folder alongside your own
+  structures. They calibrate the pocket thresholds — which were tuned on
   crystal structures — and anchor the tunnel clustering. "This design clusters
   with 5OXU" is a much stronger statement than "these designs form 8 groups".
 
-Disable with `--no-references` if you really only want your own structures.
+Leave them out if you really only want your own structures.

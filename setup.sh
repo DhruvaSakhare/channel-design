@@ -147,8 +147,8 @@ if [ "$CHECK_ONLY" = 1 ] || [ "$WANT_WEIGHTS" = 0 ]; then
     warn "are done. Otherwise either:"
     warn "  name them in envs/site.env   (if you already have them somewhere)"
     warn "  ./setup.sh --gpu --weights   (~tens of GB)"
-    [ "$SITE_ENV_READ" = 0 ] && [ -f envs/dtu-hpc.env.example ] && \
-        warn "  (no envs/site.env here yet: cp envs/dtu-hpc.env.example envs/site.env)"
+    [ "$SITE_ENV_READ" = 0 ] && [ -f envs/site.env.example ] && \
+        warn "  (no envs/site.env here yet: cp envs/site.env.example envs/site.env)"
 else
     if ! command -v uv >/dev/null 2>&1; then
         bad "needs uv"
@@ -171,7 +171,7 @@ sys.exit(0 if missing else 1)
             else
                 bad "foundry install failed"
                 bad "Already have them somewhere? Name them in envs/site.env"
-                bad "instead of downloading -- see envs/dtu-hpc.env.example."
+                bad "instead of downloading -- see envs/site.env.example."
             fi
         else
             ok "already resolvable -- nothing to download"

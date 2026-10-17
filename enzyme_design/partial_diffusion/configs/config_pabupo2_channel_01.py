@@ -12,7 +12,8 @@ Everything here came from measurement, not homology:
   MPNN_TEMPERATURE     0.25 — LigandMPNN's own default of 0.1 is near-argmax
                        and makes the designed sequences near-duplicates.
 
-Baseline to beat: 0.983 A bottleneck (apo, substrate stripped).
+Baseline to beat: the parent's bottleneck, measured apo with the substrate
+stripped and written to <stem>_baseline.json by 00_caver_channel.py.
 
 Use it:
     export PIPELINE_BASE_CONFIG=partial_diffusion.dhruva_configs.config_channel
@@ -267,8 +268,8 @@ RF3_GROUP_SIZE         = 10   # folds per RF3 array task — leave as is
 # imported by anything, and the config literal won silently. A run would
 # print the queue it was being overridden to and submit to the other one.
 #
-#   PIPELINE_QUEUE=gpuv100 python partial_diffusion/scripts/00_submit_all.py
-#   python partial_diffusion/scripts/00_submit_all.py --queue gpuv100
+#   PIPELINE_QUEUE=<gpu-queue> python partial_diffusion/scripts/00_submit_all.py
+#   python partial_diffusion/scripts/00_submit_all.py --queue <gpu-queue>
 #
 # Install paths, checkpoints and queue names live in site.py, not here --
 # an experiment is portable, a filesystem is not. Override from the

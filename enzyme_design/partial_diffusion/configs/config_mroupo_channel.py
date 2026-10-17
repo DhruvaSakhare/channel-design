@@ -10,13 +10,13 @@ every ligand-aware check misses it — CAVER finds ZERO tunnels in that file,
 versus 40 in the fixed one. The two are otherwise identical (chain A sequence
 verified the same, 234 residues); only the record type differs.
 
-MEASURED BASELINE: 1.058 A bottleneck, tunnel length 9.97 A (apo, substrate
-stripped). For context, measured the same way:
-    5FUJ 0.975 | PabUPO-II 0.983 | 9HE9 1.032 | 5OXU 1.050 | MroUPO 1.058
+MEASURED BASELINE: regenerate it with 00_caver_channel.py (apo, substrate
+stripped); the value is written to <stem>_baseline.json, which is what the
+pipeline reads.
 
 MroUPO already has the WIDEST channel of anything measured here — wider than
-both reference UPO crystals. Measured with NNBT still docked it looks like
-0.745 A, but that is the ligand occupying the bore, not the protein being
+both reference UPO crystals. Measured with NNBT still docked it looks much
+narrower, but that is the ligand occupying the bore, not the protein being
 narrow. Worth confirming there is a widening problem to solve before
 optimising for one.
 
@@ -287,8 +287,8 @@ RF3_GROUP_SIZE         = 10   # folds per RF3 array task — leave as is
 # imported by anything, and the config literal won silently. A run would
 # print the queue it was being overridden to and submit to the other one.
 #
-#   PIPELINE_QUEUE=gpuv100 python partial_diffusion/scripts/00_submit_all.py
-#   python partial_diffusion/scripts/00_submit_all.py --queue gpuv100
+#   PIPELINE_QUEUE=<gpu-queue> python partial_diffusion/scripts/00_submit_all.py
+#   python partial_diffusion/scripts/00_submit_all.py --queue <gpu-queue>
 #
 # Install paths, checkpoints and queue names live in site.py, not here --
 # an experiment is portable, a filesystem is not. Override from the

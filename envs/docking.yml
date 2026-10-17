@@ -1,6 +1,6 @@
 # Environment for the docking and channel-discovery stages.
 #
-# Transcribed from channel_discovery/hpc/00_setup_env.sh, which remains the
+# Transcribed from scripts/setup_docking_env.sh, which remains the
 # authoritative installer: conda's solver will not honour "numpy first", and
 # the vina wheel needs BOOST_INCLUDE/BOOST_LIB exported before pip runs. If
 # this YAML fails, run that script instead -- it does the steps in order.

@@ -6,7 +6,7 @@ Uses RDKit to read the substrate HETATM records (identified by SUBSTRATE_NAME in
 config.py) and generate a canonical SMILES string. Copy the output directly into
 SUBSTRATE_SMILES in partial_diffusion/config.py.
 
-Run from enzyme_design_hpc/:
+Run from enzyme_design/:
   python partial_diffusion/scripts/00_smiles_from_pdb.py
 
 Requirements:

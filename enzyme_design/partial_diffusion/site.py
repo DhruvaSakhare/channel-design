@@ -13,7 +13,7 @@ location inside the repository and can be overridden from the environment:
     export RFD3_CKPT=/shared/weights/rfd3_latest.ckpt
     export PIPELINE_WORK_ROOT=/scratch/$USER/runs
 
-``envs/dtu-hpc.env.example`` holds the values the DTU HPC run used, and
+``envs/site.env.example`` is a template for these overrides, and
 ``envs/design.md`` says where to obtain each checkpoint. The weights are not
 redistributed with this repository.
 """
@@ -63,19 +63,18 @@ RF3_CKPT    = _env("RF3_CKPT",    Path(RF3_RELEASE) / "ckpt" / "rf3_latest.pt")
 #
 # These are imported by every config, which is the only reason they do
 # anything: the configs used to define their own literals instead, so these
-# two were dead code and PIPELINE_QUEUE was silently ignored (KNOWN_ISSUES #9).
+# two were dead code and PIPELINE_QUEUE was silently ignored (tests/test_no_config_shadows_site.py).
 # tests/test_no_config_shadows_site.py keeps that from coming back.
 #
 # Precedence, lowest first: PIPELINE_QUEUE -> --queue.
 #
-# There is deliberately NO default. `gpua100` and `hpc` are DTU queue names;
-# they mean nothing on another cluster, and a queue name is as site-specific
-# as a path -- except that nothing here can check whether it exists, so a
-# wrong one fails in the scheduler minutes later, or worse, succeeds on the
-# wrong hardware. The old default also pointed at DTU's most contended queue
-# (694 jobs deep at the time of writing) while this repository's own README
-# said the two GPU queues are interchangeable: "if one is busy, try the
-# other". Guessing on the user's behalf was not earning its keep.
+# There is deliberately NO default. A queue name means nothing on another
+# cluster, and it is as site-specific as a path -- except that nothing here can
+# check whether it exists, so a wrong one fails in the scheduler minutes later,
+# or worse, succeeds on the wrong hardware. The old default also named the most
+# contended queue on the cluster this was written for, while the README said
+# the GPU queues were interchangeable. Guessing on the user's behalf was not
+# earning its keep.
 #
 # Empty is the unset signal. `00_submit_all.py` refuses to submit without it
 # and names `bqueues`. Nothing else is affected: `run_local.py` has no

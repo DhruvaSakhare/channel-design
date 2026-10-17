@@ -14,11 +14,11 @@ What was added (+10): 87, 91, 95, 206, 259, 261, 293, 294, 297, 331
 
 Catalytic residues stay pinned: 52, 85, 137, 205, 212, 215, 296, 339.
 Note this caps what run 2 can achieve — 12_bottleneck_residues.py showed the
-parent's constriction is formed by PHE215 (2.66 A) and GLU212 (2.81 A), both
-catalytic. Freeing those is a separate, riskier experiment.
+parent's constriction is formed by two of those catalytic residues (215 and
+212). Freeing them is a separate, riskier experiment.
 
-Run 1 result to beat (channel_01, 22 flexible):
-  parent 0.983 A | 16/20 folded designs widened | median +0.042 | best +0.111
+Run 1 (channel_01) is the result to beat; its measurements are on the wiki, and
+the per-run tables are in that run's scores/ directory.
 
 Use it:
     export PIPELINE_BASE_CONFIG=partial_diffusion.dhruva_configs.config_channel_02
@@ -268,8 +268,8 @@ RF3_GROUP_SIZE         = 10   # folds per RF3 array task — leave as is
 # imported by anything, and the config literal won silently. A run would
 # print the queue it was being overridden to and submit to the other one.
 #
-#   PIPELINE_QUEUE=gpuv100 python partial_diffusion/scripts/00_submit_all.py
-#   python partial_diffusion/scripts/00_submit_all.py --queue gpuv100
+#   PIPELINE_QUEUE=<gpu-queue> python partial_diffusion/scripts/00_submit_all.py
+#   python partial_diffusion/scripts/00_submit_all.py --queue <gpu-queue>
 #
 # Install paths, checkpoints and queue names live in site.py, not here --
 # an experiment is portable, a filesystem is not. Override from the

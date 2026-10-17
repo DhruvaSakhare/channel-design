@@ -4,8 +4,8 @@ config_local.py — single-GPU / no-scheduler overrides for config.py.
 
 Everything scientific (FLEXIBLE_RESIDUES, catalytic pins, SMILES, cutoffs,
 batch sizes) is inherited from config.py, so there is ONE place to edit an
-experiment. This file only replaces the things that are specific to the DTU
-cluster: install paths, checkpoints, and the scratch output root.
+experiment. This file only replaces the things that are machine-specific:
+install paths, checkpoints, and the scratch output root.
 
 Used by scripts/run_local.py, which imports this module in place of
 partial_diffusion.config before running the stage scripts.

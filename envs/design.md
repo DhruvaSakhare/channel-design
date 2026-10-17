@@ -34,7 +34,7 @@ foundry list-installed
 `base-models` fetches the current RFD3, RF3 and MPNN variants together, which
 is why this pipeline expects them side by side in one `ckpt/` directory.
 
-Then point the pipeline at them — see `envs/dtu-hpc.env.example`:
+Then point the pipeline at them — see `envs/site.env.example`:
 
 ```bash
 export RFD3_CKPT=/path/to/ckpt/rfd3_latest.ckpt

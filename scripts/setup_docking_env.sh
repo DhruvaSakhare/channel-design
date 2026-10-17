@@ -1,24 +1,26 @@
 #!/bin/sh
-# Run ONCE, on a LOGIN node (not via bsub). Builds the conda env, then verifies
-# the fragile parts before you spend any queue time.
+# Run ONCE. Builds the conda env for the docking and channel-discovery stages,
+# then verifies the fragile parts before you spend any compute on them.
 #
-# This follows your proven bio_docking recipe exactly — conda-forge swig +
+# Usage:   ./scripts/setup_docking_env.sh            # env name: channel_discovery
+#          CONDA_ENV=my_env ./scripts/setup_docking_env.sh
+#
+# This is the recipe envs/docking.yml is transcribed from — conda-forge swig +
 # boost-cpp, "numpy<2.0" installed FIRST, and BOOST_INCLUDE/BOOST_LIB exported
-# so that `pip install vina==1.2.7` can build its bindings. Two additions:
-#   - matplotlib, which bio_docking does not have but the whole caver stage
-#     needs (extract_tunnel_R.py imports pyplot at module level)
+# so that `pip install vina==1.2.7` can build its bindings. On top of the
+# docking-only recipe in docking/README.md it also installs:
+#   - matplotlib, which the whole caver stage needs (extract_tunnel_R.py imports
+#     pyplot at module level)
 #   - fpocket + openjdk, which the channel pipeline needs and docking did not
 set -eu
-cd "$(dirname "$0")"
-. ./config.sh
+CONDA_ENV="${CONDA_ENV:-channel_discovery}"
 
-CONDA_ROOT=$(find_conda_base) || {
-    echo "ERROR: cannot find a conda installation." >&2
-    echo "  Looked on PATH and in the usual roots. Find yours with:" >&2
-    echo "    ls -d \$HOME/mini* \$HOME/anaconda3 2>/dev/null" >&2
-    echo "  then set CONDA_BASE in config.sh." >&2
+command -v conda >/dev/null 2>&1 || {
+    echo "ERROR: conda is not on PATH. Install miniforge (https://conda-forge.org/download/)" >&2
+    echo "  or activate your conda first, then re-run." >&2
     exit 1
 }
+CONDA_ROOT=$(conda info --base)
 echo "Using conda at: $CONDA_ROOT"
 # shellcheck disable=SC1091
 . "$CONDA_ROOT/etc/profile.d/conda.sh"
@@ -94,4 +96,4 @@ command -v fpocket >/dev/null && echo "  OK    fpocket: $(command -v fpocket)" \
 java -version 2>&1 | head -1 | sed 's/^/  OK    java: /'
 
 echo
-echo "Ready. Put your receptor .pdb files in $INPUTS, then run ./submit_all.sh"
+echo "Ready. conda activate $CONDA_ENV, then see channel_discovery/README.md"

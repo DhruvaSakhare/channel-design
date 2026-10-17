@@ -56,12 +56,10 @@ pip install \
 
 # Boltz2 and Vina ENV setup
 
-Boltz needs to be run on a GPU, so you need to use the DTU HPC.
-https://www.hpc.dtu.dk/?page_id=2129
+Boltz needs a GPU, so this step runs on a GPU machine or a cluster.
 
-First you need to setup miniforge on the DTU HPC if using that.
-
-https://www.hpc.dtu.dk/?page_id=3816
+Set up miniforge there first if you do not have conda:
+https://conda-forge.org/download/
 
 
 ```bash
@@ -94,7 +92,7 @@ pip3 install torch --index-url https://download.pytorch.org/whl/cu128
 Run this command to automatically calculate the bounding box for the entire receptor:
 
 ```bash
-python boltz_affinity.py \
+python boltz2_affinity.py \
   -n "name_for_run" \
   -seq "sequence_of_the_enzyme" \
   -smi "smile_string_of_ligand_or_substrate" \
@@ -103,7 +101,7 @@ python boltz_affinity.py \
 If you run this example command for BADGE and 
 
 ```bash
-python boltz_affinity.py \
+python boltz2_affinity.py \
   -n "Boltz2_affinity" \
   -seq "MNPQTLPVFPDLDIFSPEYACNREKYAARALRDYPLHFYKPLNMWIVSKHKDVRSALFTPQVFSSVAFGLLPPPDDIAPRVPDLYTDVHLPSMDPPEHTKLRVPVQQALLPGRLVGKDEVVRRIANELIDTFIDKGECDLLHDFSYKLALYLIVDMLGLPKERAEDYHRWSNCFFQLFTPKVPERADARFFVPMPEEVLRQIWEDLAEANDYLREVVENLDRNPGNNMLSNLLQLREPDGSRTITISANVRNALEFGAAGHDTTATLIAHLTYFVLTTPDLKDTLTEDPSLIPAAISETLRRRGSVDGLFRRTLSDVELCGQKIESGSIVYLDLTAANLDPDVFPEPETFRLNRDNIKEMVSFGYGRHVCAGQYLSRIEAKAAYEELMRRIPNMRLADGFKLEYMPSVATTVLKGLPLVWDKN" \
   -smi "CC(C)(C1=CC=C(C=C1)OCC2CO2)C3=CC=C(C=C3)OCC4CO4" \

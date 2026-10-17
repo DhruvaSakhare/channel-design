@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Screen a directory of receptor structures BEFORE submitting cluster jobs.
+"""Screen a directory of receptor structures BEFORE running the pipeline on them.
 
 The pipeline anchors everything on the heme iron: pipeline.py calls
 find_heme_fe() during filtering, and a structure without one is recorded FAIL
@@ -9,10 +9,10 @@ have no cofactor at all, so a whole batch of them fails without ever erroring.
 
 This reproduces find_heme_fe()'s exact search order in pure Python — no fpocket,
 no java, no conda env needed — so 1000 structures screen in seconds. It writes a
-manifest of usable structures that submit_all.sh can consume directly.
+manifest of usable structures.
 
-    python3 preflight_inputs.py /scratch/$USER/channel_discovery/inputs \\
-        -o /scratch/$USER/channel_discovery/manifest.txt
+    python3 preflight_inputs.py /path/to/my_structures \\
+        -o manifest.txt --report preflight.tsv
 """
 import argparse
 import sys

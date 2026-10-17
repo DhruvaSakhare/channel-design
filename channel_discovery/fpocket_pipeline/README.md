@@ -62,11 +62,11 @@ The pipeline accepts `.cif` files alongside `.pdb` files throughout:
 
 ## Requirements
 
-On DTU HPC, everything is in the shared team env **`bio_docking`**, and the
-`hpc/` job scripts activate it for you:
+Build the environment once with `scripts/setup_docking_env.sh` (or
+`conda env create -f envs/docking.yml`), then activate it:
 
 ```bash
-conda activate bio_docking
+conda activate channel_discovery
 ```
 
 For a local run, build your own env — see the Requirements section of the
@@ -82,7 +82,7 @@ and `prepare_receptor.py` need only `numpy`, plus the `fpocket` binary. Only
 ## Quick start — full pipeline
 
 ```bash
-conda activate bio_docking
+conda activate channel_discovery
 python3 pipeline.py inputs/ -l ligands/NNBT.sdf --prepare
 ```
 
@@ -99,8 +99,8 @@ python3 pipeline.py /path/to/my_structures -l ligands/NNBT.sdf --prepare \
 
 > `pipeline.py` re-enumerates every structure in `--outputs-dir` and rewrites
 > `pocket_selection.tsv` from that view, so two concurrent runs must not share
-> one outputs directory. On HPC each array task gets its own shard dir and
-> `20_collectA.sh` merges them.
+> one outputs directory. If you split a large set across parallel runs, give
+> each its own `--outputs-dir` and merge the tables afterwards.
 
 ---
 

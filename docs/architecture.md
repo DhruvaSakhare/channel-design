@@ -98,7 +98,7 @@ directory.
 |---|---|---|
 | **Experiment** | `partial_diffusion/configs/config_*.py` | enzyme, `FLEXIBLE_RESIDUES`, substrate SMILES, cutoffs. Committed. |
 | **Machine** | `partial_diffusion/site.py` | install paths, checkpoints, queues, work root. Defaults are repo-relative; every value takes an environment override. |
-| **Your overrides** | `envs/site.env` (gitignored) | copied from `envs/dtu-hpc.env.example` |
+| **Your overrides** | `envs/site.env` (gitignored) | copied from `envs/site.env.example` |
 
 Select a config with `PIPELINE_BASE_CONFIG`; see what resolved with:
 

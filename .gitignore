@@ -9,7 +9,6 @@ docking_out/
 **/out/data/
 **/boltz_out/
 structures_pdb/
-**/hpc/logs/
 *.obj
 *.dat
 
@@ -57,7 +56,7 @@ __pycache__/
 # Your working config -- copy config_template.py to config.py and edit that.
 enzyme_design/partial_diffusion/config.py
 
-# Your sourced site overrides (copy envs/dtu-hpc.env.example)
+# Your sourced site overrides (copy envs/site.env.example)
 envs/site.env
 third_party/*
 !third_party/.gitkeep
