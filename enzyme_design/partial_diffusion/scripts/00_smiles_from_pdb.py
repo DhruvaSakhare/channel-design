@@ -14,12 +14,14 @@ Requirements:
   - The substrate HETATM records must have CONECT lines in the PDB
     (the Pada1_withHEMEFE_and_NNBT.pdb already has these)
 """
+import importlib
 import sys
 import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-import partial_diffusion.config as C
+C = importlib.import_module(
+    importlib.import_module("partial_diffusion").default_config())
 
 try:
     from rdkit import Chem

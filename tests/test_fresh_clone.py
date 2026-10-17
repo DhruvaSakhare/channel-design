@@ -8,19 +8,26 @@ straight to it, so on a clean checkout the first command anyone tried --
 first impression for someone evaluating this, so it is asserted here.
 """
 import os
+import re
 import subprocess
 import sys
 
 import pytest
 
-from conftest import REPO_ROOT
+from conftest import REPO_ROOT, repo_files
 
 SCRIPTS = REPO_ROOT / "enzyme_design" / "partial_diffusion" / "scripts"
 
 # The commands a newcomer actually types first. Each must answer --help with
 # exit 0 on a clone where no config.py exists.
 ENTRY_POINTS = ("run_local.py", "00_submit_all.py", "07_caver_rescore.py",
-                "08_probe_channel.py", "12_bottleneck_residues.py")
+                "08_probe_channel.py", "12_bottleneck_residues.py",
+                "00_prep_pdb.py")
+
+# 00_smiles_from_pdb.py is deliberately absent: it takes no arguments at all,
+# so --help is not a thing it can answer. The import bug that affected it is
+# covered by test_no_script_imports_the_gitignored_config below, which does not
+# care whether a script parses arguments.
 
 
 def _env(tmp_path):
@@ -71,3 +78,31 @@ def test_entry_point_answers_help(script, tmp_path):
     assert out.returncode == 0, (
         f"{script} --help failed on an unconfigured clone:\n{out.stderr[-600:]}")
     assert "usage" in out.stdout.lower()
+
+
+def test_no_script_imports_the_gitignored_config():
+    """No stage script may import partial_diffusion.config directly.
+
+    config.py is the user's own copy of config_template.py and is gitignored,
+    so a direct import dies with ModuleNotFoundError on a fresh clone and
+    ignores PIPELINE_BASE_CONFIG -- selecting a config silently has no effect.
+    Scripts go through partial_diffusion.default_config() instead.
+
+    The --help check above only catches this in scripts that parse arguments.
+    00_prep_pdb.py and 00_smiles_from_pdb.py both had it; the second has no
+    argparse, so nothing would have noticed.
+    """
+    offenders = []
+    for path in repo_files("*.py"):
+        if "partial_diffusion" not in str(path):
+            continue
+        for n, line in enumerate(path.read_text().splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            if re.search(r"^\s*(import|from)\s+partial_diffusion\.config\b",
+                         line):
+                offenders.append(f"{path.name}:{n}")
+    assert not offenders, (
+        "these import the gitignored config.py directly instead of calling "
+        f"partial_diffusion.default_config(): {offenders}")

@@ -15,13 +15,15 @@ Run from the partial_diffusion/ folder:
   python scripts/00_prep_pdb.py --check
   python scripts/00_prep_pdb.py --trim --out inputs/6EKZ_theozyme.pdb
 """
+import importlib
 import sys
 import math
 import argparse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-import partial_diffusion.config as C
+C = importlib.import_module(
+    importlib.import_module("partial_diffusion").default_config())
 
 
 def parse_pdb(path):
@@ -74,7 +76,10 @@ def mode_check(atoms):
     protein = [a for a in atoms if a["record"] == "ATOM"]
     hetatms = [a for a in atoms if a["record"] == "HETATM"]
 
-    residues = sorted({chain_resi(a) for a in protein})
+    # Sort by (chain, number). A plain string sort puts A100 before A99 and
+    # then reports the range as "A100-A99".
+    residues = sorted({chain_resi(a) for a in protein},
+                      key=lambda r: (r[0], int(r[1:])))
     het_residues = sorted({(a["resn"], chain_resi(a)) for a in hetatms})
 
     print(f"\nPDB: {C.INPUT_PDB}")
