@@ -69,7 +69,7 @@ we were trying to detect.
   predicted models carry the prediction's error, which is why every comparison
   is anchored to real crystals and why the apo/holo protocol is enforced.
 - **The design sample is correlated.** See the caveat in
-  [validation.md](validation.md#design-result).
+  [validation.md](validation.md#what-is-not-validated).
 - **The pipeline inherits its models' biases.** A generative model trained
   mostly on soluble, well-behaved proteins will propose soluble, well-behaved
   proteins, whether or not that suits an industrial peroxygenase.

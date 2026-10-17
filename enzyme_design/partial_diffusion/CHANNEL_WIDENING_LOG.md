@@ -13,16 +13,11 @@ in a teammate's shrink-residue config, not yet fixed.
 ## 1. Baseline
 
 Measured with the substrate stripped (apo) and every structure staged under a
-fixed filename (see §3) — reproduced independently on two machines to the
-decimal:
-
-| structure | bottleneck radius |
-|---|---|
-| 5FUJ (reference crystal) | 0.975 Å |
-| **PabUPO-II parent** | **0.983 Å** ← the number to beat |
-| 9HE9 (= PabUPO-II's own crystal structure) | 1.032 Å |
-| 5OXU (reference crystal) | 1.050 Å |
-| MroUPO | 1.058 Å |
+fixed filename (see §3), and reproduced independently on two machines to the
+decimal. The parent, the two reference crystals and MroUPO were each measured
+this way; **the values are on the [wiki](https://2026.igem.wiki/dtu-denmark/)**
+and the parent's are regenerated into `<stem>_baseline.json` by
+`00_caver_channel.py`, which is what the pipeline actually reads.
 
 9HE9 and PabUPO-II were confirmed to be the same protein: identical chain A
 (335 residues), identical residue identities checked at several positions.
@@ -33,11 +28,10 @@ decimal:
 measuring. RF3-folded designs come out **holo** (enzyme + heme + substrate);
 the three reference crystals are **apo** (heme + metals only, no substrate).
 
-- Spread between the 3 real reference structures: **0.077 Å**
-- Bottleneck shift on the *same* PabUPO-II structure, substrate in vs. out:
-  **0.454 Å**
-
-The artifact is ~6× larger than the biological signal it's supposed to detect.
+The bottleneck shift on the *same* PabUPO-II structure with the substrate in
+vs. out is several times larger than the spread between the three real
+reference structures — i.e. the artifact is larger than the biological signal
+it is supposed to detect.
 Fixed in `lib/caver_utils.py` (`strip="auto"`, on by default in both
 `00_caver_channel.py` and `07_caver_rescore.py`; the two refuse to compare a
 baseline measured one way against structures measured the other). **Not yet
@@ -45,14 +39,14 @@ fixed in `channel_discovery/` itself** — worth flagging to whoever owns it.
 
 ## 3. Bug: CAVER's output depends on the input filename
 
-Byte-identical input, 8 different filenames → bottleneck radius spread of
-**0.0885 Å**, larger than the entire reference spread above. Same bytes + same
-name is perfectly reproducible (0.0000 spread over 6 repeats). Root cause is
-inside CAVER 3.0 itself (its randomized tunnel search), not our code.
+Byte-identical input under different filenames gives a spread in bottleneck
+radius larger than the entire reference spread above. Same bytes + same name is
+exactly reproducible. Root cause is inside CAVER 3.0 itself (its randomized
+tunnel search), not our code.
 
 Fixed by staging every structure CAVER sees under one canonical filename
-(`structure.pdb`) in `caver_utils.run_caver`. Verified: spread → 0.0000, real
-structures still separate correctly.
+(`structure.pdb`) in `caver_utils.run_caver`. Verified: the spread collapses to
+zero and real structures still separate correctly.
 
 ## 4. Tools built
 
@@ -210,8 +204,9 @@ and 1-letter AA codes via `_AA3TO1`.
 
 Without the placeholder, the two remaining levers for widening are
 `PARTIAL_T` (backbone freedom) and this shrink mechanism (sequence-level).
-Earlier sidechain-stripping test (§ — full removal of 952 sidechain atoms
-only bought +0.03 Å) suggests this constriction may be mostly backbone-limited
+An earlier sidechain-stripping test (full removal of every flexible-residue
+sidechain atom bought very little) suggests this constriction may be mostly
+backbone-limited
 — so `PARTIAL_T` is probably the higher-leverage knob to raise first if a
 pilot comes back `NARROWER` or `UNCHANGED`.
 
@@ -250,35 +245,26 @@ the public LigandMPNN release.
 
 ## 7d. First real channel-width distribution (2026-08-24)
 
-`02b_caver_filter.py` completed on 10 real RFD3 backbones. Config: CAVER-derived
-22 FLEXIBLE_RESIDUES, PARTIAL_T=10, no placeholder.
+`02b_caver_filter.py` completed on a full batch of real RFD3 backbones. Config:
+the CAVER-derived FLEXIBLE_RESIDUES set, PARTIAL_T=10, no placeholder. The
+distribution itself — how many widened, the mean and spread, and how the
+backbones compare against the reference UPOs — is on the
+[wiki](https://2026.igem.wiki/dtu-denmark/); the per-run numbers are in
+`diffusion_out/caver_filter.csv` for whoever reruns it.
 
-| metric | value |
-|---|---|
-| widened | **10 / 10** |
-| mean delta | **+0.057 A** |
-| median delta | +0.063 A |
-| stdev | 0.023 |
-| range | +0.013 to +0.084 A |
-| radius range | 0.995 - 1.067 A (parent 0.983) |
-| above 0.02 noise floor | 9 / 10 |
-
-vs. reference UPOs: all 10 beat 5FUJ (0.975); 7 beat 9HE9 (1.032, PabUPO-II's
-own crystal); 4 beat 5OXU (1.050).
-
-This settles the N=1 concern from the pilot — the single +0.057 A draw was not
-luck, it sat almost exactly on the mean of 10, and every backbone widened.
-PARTIAL_T=10 + the CAVER residue set reliably opens the backbone.
+This settles the N=1 concern from the pilot: the single widening draw was not
+luck, it sat close to the batch mean, and every backbone widened. PARTIAL_T=10
+plus the CAVER residue set reliably opens the backbone.
 
 **Still only backbone geometry.** MPNN sequence choice and RF3 refolding come
-after; 07_caver_rescore.py on folded designs is the number that counts.
+after; `07_caver_rescore.py` on folded designs is the number that counts.
 
 ## 7e. "Killed" CPU jobs are cosmetic — do not re-debug
 
 `caver_filter` and `rf3_prep` both report `Exited with signal termination: 9` /
 `TERM_EXTERNAL_SIGNAL` while having completed their work correctly (the filter
-wrote all 10 CSV rows before "dying"; two runs died at an identical 338 s with
-identical CPU/memory, which is deterministic, not node pressure).
+wrote every CSV row before "dying"; two runs died at an identical elapsed time
+with identical CPU/memory, which is deterministic, not node pressure).
 
 Cause is almost certainly the cleanup loop every job script ends with:
 ```sh
@@ -300,23 +286,25 @@ is not blocking anything.
 
 **Done.** The full chain runs end to end: CAVER-derived residue selection →
 RFD3 → channel-width filter → MPNN with per-residue omission → RF3 → scoring →
-before/after channel measurement. `channel_01` produced 174 designs passing the
-quality gates, of which the first 20 measured show 16/20 widened (median
-+0.042 A, best 1.094 A vs parent 0.983 A).
+before/after channel measurement. `channel_01` produced a batch of designs
+passing the quality gates, of which the first subset measured mostly widened.
+The counts and deltas are on the [wiki](https://2026.igem.wiki/dtu-denmark/);
+the per-run tables are in `scores/caver_rescore.csv`.
 
-**Running.** `channel_02` — identical except FLEXIBLE_RESIDUES 22 -> 32
-(+87, 91, 95, 206, 259, 261, 293, 294, 297, 331), making the lining stretches
-contiguous. Single-variable change, so the comparison is clean.
+**Running.** `channel_02` — identical except for a larger FLEXIBLE_RESIDUES
+set (+87, 91, 95, 206, 259, 261, 293, 294, 297, 331), making the lining
+stretches contiguous. Single-variable change, so the comparison is clean.
 
 **Open.**
 
-1. Finish rescoring all 174 of `channel_01` — the 20 measured so far are all
-   from backbone `model_0`, so they are correlated and not representative.
+1. Finish rescoring every passing design of `channel_01` — those measured so
+   far are all from backbone `model_0`, so they are correlated and not
+   representative.
 2. Compare `channel_02` against `channel_01`. If the pass rate holds but the
    median gain does not improve, that supports the constriction being
    backbone-limited, and the next lever is PARTIAL_T rather than more residues.
-3. The catalytic ceiling (§7d) — PHE215/GLU212 form the bottleneck. Any further
-   widening means a deliberate decision about the active site.
+3. The catalytic ceiling (§7d) — two catalytic residues form the bottleneck.
+   Any further widening means a deliberate decision about the active site.
 4. Hand the omit-flag fix (§7c) back to the teammate for their MroUPO config,
    which still has the flag-name bug AND the 157/160 catalytic overlap.
 5. Tell whoever owns `channel_discovery/` about the apo/holo and filename

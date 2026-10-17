@@ -16,23 +16,27 @@ residues to free, gates backbones before they cost GPU time, and scores the
 folded designs — and fixes two measurement bugs that made the existing
 comparisons unreliable.
 
-**Result on PabUPO-II:** parent bottleneck 0.983 Å → best design **1.094 Å
-(+11.3%)**, wider than all three reference UPO crystals, at pLDDT 0.96.
+**Measured results are on the [wiki](https://2026.igem.wiki/dtu-denmark/)**,
+not in this repository. This changelog records what the software does and why.
 
 ---
 
 ## Two measurement bugs (these invalidated existing comparisons)
 
-**1. apo vs holo.** RF3 folds enzyme + heme + substrate, so designs come out
-*holo*; the CAVER reference crystals are *apo*. A bound substrate costs ~0.45 Å
-of bottleneck radius. The spread across the three real references is 0.077 Å —
-**the artifact is ~6× the signal**. Every comparison of designs against those
-references was measuring ligand occupancy, not channel shape.
+> Update: both fixes now live in `channel_discovery/caver_pipeline/python_scripts/staging.py`
+> and are used by `run_batch.py` as well as `caver_utils.py`. `run_batch.py`
+> strips a bound substrate by default (`--keep-substrate` to opt out).
 
-**2. CAVER depends on the input filename.** Byte-identical input under 8
-different filenames gave 0.0885 Å of spread — again larger than the difference
-between real structures. Same bytes + same name is perfectly reproducible
-(0.0000 over 6 repeats). Cause is inside CAVER 3.0's randomized tunnel search.
+**1. apo vs holo.** RF3 folds enzyme + heme + substrate, so designs come out
+*holo*; the CAVER reference crystals are *apo*. A bound substrate occupies part
+of the channel, and the artifact is several times larger than the real spread
+between references. Every comparison of designs against those references was
+measuring ligand occupancy, not channel shape.
+
+**2. CAVER depends on the input filename.** Byte-identical input under
+different filenames gives a spread larger than the difference between real
+structures. Same bytes + same name is exactly reproducible. Cause is inside
+CAVER 3.0's randomized tunnel search.
 
 Both are handled in `enzyme_design/lib/caver_utils.py`: strip the substrate by default, stage
 every structure as `structure.pdb`. Scripts refuse to compare a baseline
@@ -74,8 +78,8 @@ residues you just freed.
 
 | file | what |
 |---|---|
-| `enzyme_design/partial_diffusion/configs/config_pabupo2_channel_01.py` | run 1 — 22 CAVER-derived flexible, 15 shrink |
-| `enzyme_design/partial_diffusion/configs/config_pabupo2_channel_02.py` | run 2 — 32 flexible, 25 shrink; only the residue set differs |
+| `enzyme_design/partial_diffusion/configs/config_pabupo2_channel_01.py` | run 1 — CAVER-derived flexible and shrink sets |
+| `enzyme_design/partial_diffusion/configs/config_pabupo2_channel_02.py` | run 2 — a larger flexible set; only the residue set differs |
 | _(not published -- a near-duplicate of the two above)_ | PabUPO-II helix 86-107, sotiris's own choice, with the new machinery |
 
 **11 team configs were fixed.** All of sotiris's, most of kristine's, both of
@@ -98,10 +102,10 @@ occupy the bore — took three rounds of bug fixes (column alignment, atom-seria
 ordering, then `TUN` turning out to be a real 6-atom CCD code) and is currently
 **off** by choice. `SHRINK_RESIDUES` is the cleaner lever.
 
-**The ceiling is catalytic.** The parent's constriction is formed by PHE215
-(2.66 Å) and GLU212 (2.81 Å) — both catalytic. Cys52's SG sits 2.35 Å from the
-heme iron, a real coordination bond measured from coordinates, not taken from a
-comment. Widening much past current levels means touching the active site.
+**The ceiling is catalytic.** The parent's constriction is formed by two
+catalytic residues, and the proximal Cys coordinates the heme iron — both
+measured from coordinates, not taken from a comment. Widening much past current
+levels means touching the active site.
 
 **Verify CLI flags against the installed package, not upstream docs.** The
 deployed `mpnn` is a custom build whose flag names differ from public
@@ -116,34 +120,21 @@ files exist before assuming failure.
 
 ## Results
 
-Measured apo, canonical staging:
+Reported on the [wiki](https://2026.igem.wiki/dtu-denmark/), measured apo under
+canonical staging. They are not duplicated here, so there is no second copy to
+drift out of date.
 
-| structure | bottleneck |
-|---|---|
-| 5FUJ (reference) | 0.975 Å |
-| **PabUPO-II parent** | **0.983 Å** |
-| 9HE9 (= PabUPO-II crystal) | 1.032 Å |
-| 5OXU (reference) | 1.050 Å |
-| MroUPO | 1.058 Å |
-
-**`channel_01`** (22 flexible, 15 shrink): 10/10 RFD3 backbones widened, mean
-+0.057 Å. 174/200 designs passed pLDDT/PAE/ipSAE — forbidding six bulky residue
-types did *not* destabilize the fold. Of the first 20 folded designs measured:
-**16/20 widened, median +0.042 Å, best 1.094 Å (+0.111)**.
-
-So roughly two-thirds of the backbone-stage gain survives MPNN sequence design
-and RF3 refolding.
-
-⚠️ Those 20 are all from backbone `model_0` — alphabetically first, therefore
-correlated and **not representative**. The full 174-design rescore is still
+One caveat belongs with the software rather than the numbers: the designs
+measured so far all come from a single RFD3 backbone — alphabetically first,
+therefore correlated and **not representative**. The full rescore is still
 outstanding.
 
 ---
 
 ## Open
 
-1. Finish rescoring all 174 of `channel_01`.
-2. Compare `channel_02` (32 flexible) against `channel_01`. If the pass rate
+1. Finish rescoring every passing design of `channel_01`.
+2. Compare `channel_02` (more flexible residues) against `channel_01`. If the pass rate
    holds but the median gain does not improve, the constriction is
    backbone-limited and the next lever is `PARTIAL_T`, not more residues.
 3. Hand `KNOWN_ISSUES.md` to whoever owns the MroUPO bias code — three
